@@ -1730,9 +1730,55 @@
     <input type="file" id="galleryInput" accept="image/*" style="display:none;">
 
     <script>
-        // ===== 密碼保護 =====
-        // 默認密碼，可通過修改密碼功能更改
-        let ACCESS_PASSWORD = localStorage.getItem('fanStandPassword') || "CS1908";
+        // ===== 密碼保護（雲端同步版） =====
+        // 密碼和版本號從 Firebase 獲取，確保全員同步
+        let ACCESS_PASSWORD = "CS1908";
+        let PASSWORD_VERSION = 0;
+        let isPasswordLoaded = false;
+
+        // 從雲端加載密碼配置
+        async function loadPasswordConfig() {
+            if (!isFirebaseReady) {
+                // Firebase 未就緒時使用默認密碼
+                return;
+            }
+            
+            try {
+                const snapshot = await firebaseDB.ref('passwordConfig').once('value');
+                const config = snapshot.val();
+                
+                if (config) {
+                    ACCESS_PASSWORD = config.password || "CS1908";
+                    PASSWORD_VERSION = config.version || 0;
+                } else {
+                    // 首次使用，初始化默認密碼
+                    await firebaseDB.ref('passwordConfig').set({
+                        password: "CS1908",
+                        version: 0,
+                        updatedAt: Date.now()
+                    });
+                }
+                isPasswordLoaded = true;
+                console.log('[Password] 密碼配置已加載，版本:', PASSWORD_VERSION);
+                
+                // 檢查是否需要重新驗證
+                checkPasswordVersion();
+            } catch (error) {
+                console.error('[Password] 加載密碼配置失敗:', error);
+            }
+        }
+
+        // 檢查密碼版本（若雲端版本較高，需重新驗證）
+        function checkPasswordVersion() {
+            const localVersion = parseInt(sessionStorage.getItem('fanStandPasswordVersion') || '-1');
+            if (PASSWORD_VERSION > localVersion) {
+                // 密碼已修改，清除驗證狀態
+                sessionStorage.removeItem('fanStandVerified');
+                sessionStorage.removeItem('fanStandPasswordVersion');
+                document.getElementById('passwordScreen').classList.remove('hidden');
+                showToast('密碼已更新，請重新登入', 'info');
+            }
+        }
 
         // 檢查是否已驗證
         function isPasswordVerified() {
@@ -1740,10 +1786,17 @@
         }
 
         // 驗證密碼
-        function checkPassword() {
+        async function checkPassword() {
             const input = document.getElementById('passwordInput').value;
+            
+            // 確保密碼已加載
+            if (!isPasswordLoaded && isFirebaseReady) {
+                await loadPasswordConfig();
+            }
+            
             if (input === ACCESS_PASSWORD) {
                 sessionStorage.setItem('fanStandVerified', 'true');
+                sessionStorage.setItem('fanStandPasswordVersion', PASSWORD_VERSION.toString());
                 document.getElementById('passwordScreen').classList.add('hidden');
                 document.getElementById('passwordError').style.display = 'none';
             } else {
@@ -1769,8 +1822,8 @@
             document.getElementById('passwordInput').focus();
         }
 
-        // 修改密碼
-        function changePassword() {
+        // 修改密碼（更新到雲端，全员生效）
+        async function changePassword() {
             const oldPass = document.getElementById('oldPasswordInput').value;
             const newPass = document.getElementById('newPasswordInput').value;
             const errorDiv = document.getElementById('changePasswordError');
@@ -1787,27 +1840,88 @@
                 return;
             }
 
-            // 保存新密碼
-            ACCESS_PASSWORD = newPass;
-            localStorage.setItem('fanStandPassword', newPass);
+            if (!isFirebaseReady) {
+                errorDiv.textContent = '雲端未連接，無法修改密碼';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                // 更新雲端密碼，版本號 +1
+                const newVersion = PASSWORD_VERSION + 1;
+                await firebaseDB.ref('passwordConfig').set({
+                    password: newPass,
+                    version: newVersion,
+                    updatedAt: Date.now()
+                });
+                
+                // 更新本地變量
+                ACCESS_PASSWORD = newPass;
+                PASSWORD_VERSION = newVersion;
+                
+                alert('密碼修改成功！所有設備都需要使用新密碼登入。');
+                hideChangePassword();
+                
+                // 清除驗證狀態，要求重新登入
+                sessionStorage.removeItem('fanStandVerified');
+                sessionStorage.setItem('fanStandPasswordVersion', newVersion.toString());
+                document.getElementById('passwordScreen').classList.remove('hidden');
+                document.getElementById('passwordInput').value = '';
+                document.getElementById('passwordInput').focus();
+            } catch (error) {
+                console.error('[Password] 修改密碼失敗:', error);
+                errorDiv.textContent = '修改失敗: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        // 監聽密碼變化（實時）
+        function listenPasswordChanges() {
+            if (!isFirebaseReady) return;
             
-            alert('密碼修改成功！請使用新密碼登入。');
-            hideChangePassword();
-            
-            // 清除驗證狀態，要求重新登入
-            sessionStorage.removeItem('fanStandVerified');
-            document.getElementById('passwordScreen').classList.remove('hidden');
-            document.getElementById('passwordInput').value = '';
-            document.getElementById('passwordInput').focus();
+            firebaseDB.ref('passwordConfig').on('value', (snapshot) => {
+                const config = snapshot.val();
+                if (config) {
+                    const newVersion = config.version || 0;
+                    if (newVersion > PASSWORD_VERSION) {
+                        ACCESS_PASSWORD = config.password || "CS1908";
+                        PASSWORD_VERSION = newVersion;
+                        console.log('[Password] 檢測到密碼更新，版本:', PASSWORD_VERSION);
+                        checkPasswordVersion();
+                    }
+                }
+            });
         }
 
         // 頁面加載時檢查密碼
-        window.addEventListener('load', function() {
-            if (isPasswordVerified()) {
-                document.getElementById('passwordScreen').classList.add('hidden');
-            } else {
-                document.getElementById('passwordInput').focus();
-            }
+        window.addEventListener('load', async function() {
+            // 等待 Firebase 初始化
+            const checkFirebase = setInterval(async () => {
+                if (isFirebaseReady) {
+                    clearInterval(checkFirebase);
+                    await loadPasswordConfig();
+                    listenPasswordChanges();
+                    
+                    if (isPasswordVerified()) {
+                        document.getElementById('passwordScreen').classList.add('hidden');
+                    } else {
+                        document.getElementById('passwordInput').focus();
+                    }
+                }
+            }, 500);
+            
+            // 超時處理（5秒後 Firebase 仍未就緒）
+            setTimeout(() => {
+                clearInterval(checkFirebase);
+                if (!isPasswordLoaded) {
+                    console.warn('[Password] Firebase 未就緒，使用本地默認密碼');
+                    if (isPasswordVerified()) {
+                        document.getElementById('passwordScreen').classList.add('hidden');
+                    } else {
+                        document.getElementById('passwordInput').focus();
+                    }
+                }
+            }, 5000);
         });
 
         // 監聽 Enter 鍵
