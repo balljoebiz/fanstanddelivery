@@ -23,6 +23,116 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        /* 密碼保護界面 */
+        #passwordScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            transition: opacity 0.5s ease;
+        }
+
+        #passwordScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .password-box {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 360px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .password-box h2 {
+            margin-bottom: 10px;
+            color: #1d1d1f;
+            font-size: 24px;
+        }
+
+        .password-box p {
+            color: #86868b;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 4px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: #0071e3;
+        }
+
+        .password-btn {
+            width: 100%;
+            padding: 15px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .password-btn:hover {
+            background: #0051a2;
+            transform: translateY(-2px);
+        }
+
+        .password-error {
+            color: #ff3b30;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .password-change-link {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #0071e3;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        /* 修改密碼界面 */
+        #changePasswordScreen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100000;
+        }
+
+        #changePasswordScreen.active {
+            display: flex;
+        }
+
         .container {
             max-width: 768px;
             margin: 0 auto;
@@ -1394,6 +1504,31 @@
     </style>
 </head>
 <body>
+    <!-- 密碼保護界面 -->
+    <div id="passwordScreen">
+        <div class="password-box">
+            <h2>🔒 訪問受限</h2>
+            <p>請輸入密碼以繼續</p>
+            <input type="password" id="passwordInput" class="password-input" placeholder="輸入密碼" maxlength="20">
+            <button class="password-btn" onclick="checkPassword()">進入</button>
+            <div id="passwordError" class="password-error">密碼錯誤</div>
+            <div class="password-change-link" onclick="showChangePassword()">修改密碼</div>
+        </div>
+    </div>
+
+    <!-- 修改密碼界面 -->
+    <div id="changePasswordScreen">
+        <div class="password-box">
+            <h2>🔐 修改密碼</h2>
+            <p>請先輸入舊密碼，再設置新密碼</p>
+            <input type="password" id="oldPasswordInput" class="password-input" placeholder="舊密碼" maxlength="20" style="margin-bottom: 10px;">
+            <input type="password" id="newPasswordInput" class="password-input" placeholder="新密碼（至少4位）" maxlength="20" style="margin-bottom: 15px;">
+            <button class="password-btn" onclick="changePassword()">確認修改</button>
+            <div id="changePasswordError" class="password-error"></div>
+            <div class="password-change-link" onclick="hideChangePassword()">返回登入</div>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Page 1: 查詢 -->
         <div class="page active" id="page-query">
@@ -1499,6 +1634,7 @@
                     ☁️ 同步雲端
                 </button>
             </div>
+            <div id="syncStatus" style="text-align: center; font-size: 12px; color: #86868b; margin-top: 8px; padding: 0 20px;">等待同步</div>
 
             <div id="completedList"></div>
         </div>
@@ -1594,6 +1730,96 @@
     <input type="file" id="galleryInput" accept="image/*" style="display:none;">
 
     <script>
+        // ===== 密碼保護 =====
+        // 默認密碼，可通過修改密碼功能更改
+        let ACCESS_PASSWORD = localStorage.getItem('fanStandPassword') || "CS1908";
+
+        // 檢查是否已驗證
+        function isPasswordVerified() {
+            return sessionStorage.getItem('fanStandVerified') === 'true';
+        }
+
+        // 驗證密碼
+        function checkPassword() {
+            const input = document.getElementById('passwordInput').value;
+            if (input === ACCESS_PASSWORD) {
+                sessionStorage.setItem('fanStandVerified', 'true');
+                document.getElementById('passwordScreen').classList.add('hidden');
+                document.getElementById('passwordError').style.display = 'none';
+            } else {
+                document.getElementById('passwordError').style.display = 'block';
+                document.getElementById('passwordInput').value = '';
+                document.getElementById('passwordInput').focus();
+            }
+        }
+
+        // 顯示修改密碼界面
+        function showChangePassword() {
+            document.getElementById('changePasswordScreen').classList.add('active');
+            document.getElementById('oldPasswordInput').value = '';
+            document.getElementById('newPasswordInput').value = '';
+            document.getElementById('changePasswordError').style.display = 'none';
+            setTimeout(() => document.getElementById('oldPasswordInput').focus(), 100);
+        }
+
+        // 隱藏修改密碼界面
+        function hideChangePassword() {
+            document.getElementById('changePasswordScreen').classList.remove('active');
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('passwordInput').focus();
+        }
+
+        // 修改密碼
+        function changePassword() {
+            const oldPass = document.getElementById('oldPasswordInput').value;
+            const newPass = document.getElementById('newPasswordInput').value;
+            const errorDiv = document.getElementById('changePasswordError');
+
+            if (oldPass !== ACCESS_PASSWORD) {
+                errorDiv.textContent = '舊密碼錯誤';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPass.length < 4) {
+                errorDiv.textContent = '新密碼至少需要4位';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // 保存新密碼
+            ACCESS_PASSWORD = newPass;
+            localStorage.setItem('fanStandPassword', newPass);
+            
+            alert('密碼修改成功！請使用新密碼登入。');
+            hideChangePassword();
+            
+            // 清除驗證狀態，要求重新登入
+            sessionStorage.removeItem('fanStandVerified');
+            document.getElementById('passwordScreen').classList.remove('hidden');
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('passwordInput').focus();
+        }
+
+        // 頁面加載時檢查密碼
+        window.addEventListener('load', function() {
+            if (isPasswordVerified()) {
+                document.getElementById('passwordScreen').classList.add('hidden');
+            } else {
+                document.getElementById('passwordInput').focus();
+            }
+        });
+
+        // 監聽 Enter 鍵
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') checkPassword();
+            });
+            document.getElementById('newPasswordInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') changePassword();
+            });
+        });
+
         // ===== 調試開關 =====
         const DEBUG = false;
         function log(...args) { if (DEBUG) console.log('[FanStand]', ...args); }
@@ -1633,8 +1859,8 @@
                 // 開始監聽雲端數據變化
                 syncFromCloud();
                 
-                // 設置自動同步
-                setInterval(syncToCloud, SYNC_INTERVAL);
+                // 顯示同步狀態
+                updateSyncStatus('已連接雲端，等待同步');
                 
                 return true;
             } catch (error) {
@@ -1643,24 +1869,176 @@
             }
         }
 
-        // 同步數據到雲端
+        // 同步數據到雲端（增量同步）
         async function syncToCloud() {
-            if (!isFirebaseReady) return;
+            if (!isFirebaseReady) {
+                showToast('雲端未連接', 'error');
+                return;
+            }
+            
+            // 防止頻繁同步（最少間隔 5 秒）
+            const now = Date.now();
+            const lastSyncAttempt = parseInt(localStorage.getItem('fanStandLastSyncAttempt') || '0');
+            if (now - lastSyncAttempt < 5000) {
+                showToast('同步過於頻繁，請稍後再試', 'warning');
+                return;
+            }
+            localStorage.setItem('fanStandLastSyncAttempt', now.toString());
+            
+            updateSyncStatus('正在同步...');
             
             try {
-                const stores = await getAllStores();
-                const images = await getAllImages();
+                // 只獲取變更的數據
+                const pendingChanges = getPendingChanges();
+                if (!pendingChanges.hasChanges) {
+                    showToast('沒有需要同步的變更', 'info');
+                    updateSyncStatus('已同步');
+                    return;
+                }
                 
-                const data = {
-                    stores: stores,
-                    images: images,
-                    lastSync: Date.now()
+                // 獲取雲端當前版本
+                const cloudSnapshot = await firebaseDB.ref('deliveryData/version').once('value');
+                const cloudVersion = cloudSnapshot.val() || 0;
+                const localVersion = parseInt(localStorage.getItem('fanStandDataVersion') || '0');
+                
+                // 如果雲端版本較新，先拉取更新
+                if (cloudVersion > localVersion) {
+                    showToast('雲端有更新，先拉取數據...', 'info');
+                    await syncFromCloudOnce();
+                }
+                
+                // 合併數據並更新
+                const mergedData = await mergeWithCloudData();
+                
+                // 使用 update 而非 set，避免覆蓋其他用戶數據
+                const updates = {
+                    'deliveryData/stores': mergedData.stores,
+                    'deliveryData/images': mergedData.images,
+                    'deliveryData/lastSync': Date.now(),
+                    'deliveryData/version': cloudVersion + 1
                 };
                 
-                await firebaseDB.ref('deliveryData').set(data);
-                console.log('[Firebase] 數據已同步到雲端');
+                await firebaseDB.ref().update(updates);
+                
+                // 更新本地版本號
+                localStorage.setItem('fanStandDataVersion', (cloudVersion + 1).toString());
+                localStorage.setItem('fanStandLastSync', Date.now().toString());
+                clearPendingChanges();
+                
+                showToast('同步成功', 'success');
+                updateSyncStatus('同步完成');
+                console.log('[Firebase] 增量同步成功');
             } catch (error) {
                 console.error('[Firebase] 同步失敗:', error);
+                showToast('同步失敗: ' + error.message, 'error');
+                updateSyncStatus('同步失敗');
+            }
+        }
+
+        // 獲取待同步的變更
+        function getPendingChanges() {
+            const changes = localStorage.getItem('fanStandPendingChanges');
+            if (changes) {
+                return JSON.parse(changes);
+            }
+            return { hasChanges: false };
+        }
+
+        // 標記變更（在數據修改時調用）
+        function markAsChanged(type, key) {
+            const changes = getPendingChanges();
+            changes.hasChanges = true;
+            if (!changes[type]) changes[type] = [];
+            if (!changes[type].includes(key)) {
+                changes[type].push(key);
+            }
+            changes.timestamp = Date.now();
+            localStorage.setItem('fanStandPendingChanges', JSON.stringify(changes));
+            updateSyncStatus('有待同步的變更');
+        }
+
+        // 清除待同步標記
+        function clearPendingChanges() {
+            localStorage.removeItem('fanStandPendingChanges');
+        }
+
+        // 合併雲端數據
+        async function mergeWithCloudData() {
+            const cloudSnapshot = await firebaseDB.ref('deliveryData').once('value');
+            const cloudData = cloudSnapshot.val() || { stores: [], images: [] };
+            const localStores = await getAllStores();
+            const localImages = await getAllImages();
+            
+            // 合併商店數據（以本地為主，但需要時可以添加合併邏輯）
+            const mergedStores = [...(cloudData.stores || [])];
+            localStores.forEach(localStore => {
+                const idx = mergedStores.findIndex(s => s.key === localStore.key);
+                if (idx >= 0) {
+                    // 保留較新的時間戳
+                    if (localStore.time > mergedStores[idx].time) {
+                        mergedStores[idx] = localStore;
+                    }
+                } else {
+                    mergedStores.push(localStore);
+                }
+            });
+            
+            // 合併圖片數據
+            const mergedImages = [...(cloudData.images || [])];
+            localImages.forEach(localImg => {
+                const idx = mergedImages.findIndex(img => 
+                    img.storeKey === localImg.storeKey && img.imageId === localImg.imageId
+                );
+                if (idx < 0) {
+                    mergedImages.push(localImg);
+                }
+            });
+            
+            return { stores: mergedStores, images: mergedImages };
+        }
+
+        // 一次性拉取雲端數據
+        async function syncFromCloudOnce() {
+            const snapshot = await firebaseDB.ref('deliveryData').once('value');
+            const data = snapshot.val();
+            if (!data) return;
+            
+            // 合併到本地
+            if (data.stores) {
+                for (const store of data.stores) {
+                    if (store.key && store.time) {
+                        const localKey = store.key;
+                        if (!completedStores[localKey] || completedStores[localKey].time < store.time) {
+                            completedStores[localKey] = { time: store.time };
+                        }
+                    }
+                }
+                localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
+            }
+            
+            if (data.images) {
+                for (const img of data.images) {
+                    await saveImageToLocal(img.storeKey, img.imageId, img.imageData);
+                }
+            }
+            
+            if (data.version) {
+                localStorage.setItem('fanStandDataVersion', data.version.toString());
+            }
+            
+            renderAll();
+        }
+
+        // 更新同步狀態顯示
+        function updateSyncStatus(status) {
+            const statusEl = document.getElementById('syncStatus');
+            if (statusEl) {
+                statusEl.textContent = status;
+                const lastSync = localStorage.getItem('fanStandLastSync');
+                if (lastSync) {
+                    const date = new Date(parseInt(lastSync));
+                    statusEl.title = '上次同步: ' + date.toLocaleString();
+                }
             }
         }
 
@@ -1738,9 +2116,87 @@
             return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
         }
 
-        async function saveImage(storeKey, imageData) {
-            const imageId = generateId();
+        // 圖片壓縮配置
+        const MAX_IMAGE_WIDTH = 1200;
+        const MAX_IMAGE_HEIGHT = 1200;
+        const IMAGE_QUALITY = 0.7; // JPEG 質量
+        const MAX_IMAGES_PER_STORE = 2;
+
+        // 壓縮圖片
+        async function compressImage(base64Data) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = function() {
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // 計算縮放比例
+                    if (width > MAX_IMAGE_WIDTH || height > MAX_IMAGE_HEIGHT) {
+                        const ratio = Math.min(MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height);
+                        width *= ratio;
+                        height *= ratio;
+                    }
+                    
+                    // 創建 Canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 繪製圖片
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // 輸出壓縮後的 Base64
+                    const compressed = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
+                    
+                    log('圖片壓縮:', base64Data.length, '->', compressed.length, 
+                        '(' + Math.round((1 - compressed.length/base64Data.length) * 100) + '% 減少)');
+                    
+                    resolve(compressed);
+                };
+                img.onerror = reject;
+                img.src = base64Data;
+            });
+        }
+
+        // 檢查圖片數量限制
+        async function checkImageLimit(storeKey) {
+            const images = await getImagesForStore(storeKey);
+            return images.length < MAX_IMAGES_PER_STORE;
+        }
+
+        // 獲取某店舖的圖片數量
+        async function getImagesForStore(storeKey) {
+            if (!db) await initDB();
+            
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const images = request.result.filter(item => item.storeKey === storeKey);
+                    resolve(images);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveImage(storeKey, imageId, imageData) {
             log('保存圖片:', storeKey, imageId);
+            
+            // 檢查圖片數量限制
+            const canAdd = await checkImageLimit(storeKey);
+            if (!canAdd) {
+                throw new Error('每個店舖最多只能保存 ' + MAX_IMAGES_PER_STORE + ' 張圖片');
+            }
+            
+            // 壓縮圖片
+            let compressedData = imageData;
+            try {
+                compressedData = await compressImage(imageData);
+            } catch (e) {
+                console.warn('圖片壓縮失敗，使用原圖:', e);
+            }
             
             // 等待 IndexedDB 準備好
             if (!db) {
@@ -1752,9 +2208,10 @@
             return new Promise((resolve, reject) => {
                 const transaction = db.transaction([STORE_NAME], 'readwrite');
                 const store = transaction.objectStore(STORE_NAME);
-                const request = store.put({ storeKey, imageId, imageData, time: Date.now() });
+                const request = store.put({ storeKey, imageId, imageData: compressedData, time: Date.now() });
                 request.onsuccess = () => {
                     log('圖片保存成功:', imageId);
+                    markAsChanged('images', storeKey);
                     resolve(imageId);
                 };
                 request.onerror = () => {
@@ -2028,6 +2485,7 @@
                 };
             }
             localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
+            markAsChanged('stores', key);
             renderCurrentDay();
             updateStats();
             renderCompletedPage();
