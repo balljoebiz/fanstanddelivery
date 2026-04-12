@@ -1,4203 +1,594 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no">
-    <title>Small Fan Stand 送貨路線 - 雲端版</title>
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SFS Delivery System</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: #f5f5f7;
-            color: #1d1d1f;
-            min-height: 100vh;
-            -webkit-font-smoothing: antialiased;
+            padding-bottom: 80px;
+            overflow-x: hidden;
         }
-
-        /* 密碼保護界面 */
-        #passwordScreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 99999;
-            transition: opacity 0.5s ease;
-        }
-
-        #passwordScreen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .password-box {
-            background: white;
-            padding: 40px 30px;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 360px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            text-align: center;
-        }
-
-        .password-box h2 {
-            margin-bottom: 10px;
-            color: #1d1d1f;
-            font-size: 24px;
-        }
-
-        .password-box p {
-            color: #86868b;
-            margin-bottom: 25px;
-            font-size: 14px;
-        }
-
-        .password-input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 18px;
-            text-align: center;
-            letter-spacing: 4px;
-            margin-bottom: 15px;
-            transition: border-color 0.3s;
-        }
-
-        .password-input:focus {
-            outline: none;
-            border-color: #0071e3;
-        }
-
-        .password-btn {
-            width: 100%;
-            padding: 15px;
-            background: #0071e3;
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: white;
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .day-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .day-btn {
+            padding: 8px 16px;
             border: none;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+        .day-btn.active { background: #0071e3; }
+        .store-list { padding: 15px; }
+        .day-section { display: none; }
+        .day-section.active { display: block; }
+        .store-card {
+            background: white;
             border-radius: 12px;
-            font-size: 16px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .store-info { flex: 1; }
+        .store-id {
+            font-size: 18px;
             font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 4px;
+        }
+        .store-address {
+            font-size: 14px;
+            color: #86868b;
+        }
+        .staff-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+        .staff-badge.raymond { background: #e3f2fd; color: #1976d2; }
+        .staff-badge.dj { background: #f3e5f5; color: #7b1fa2; }
+        .complete-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid #34c759;
+            background: white;
+            color: #34c759;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .complete-btn.completed {
+            background: #34c759;
+            color: white;
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        .nav-btn {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border: none;
+            background: none;
+            color: #86868b;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.3s;
         }
-
-        .password-btn:hover {
-            background: #0051a2;
-            transform: translateY(-2px);
+        .nav-btn.active { color: #0071e3; }
+        .nav-btn i { font-size: 24px; display: block; margin-bottom: 4px; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .completed-header {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-
-        .password-error {
-            color: #ff3b30;
-            font-size: 14px;
-            margin-top: 10px;
-            display: none;
+        .completed-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
         }
-
-        .password-change-link {
-            margin-top: 20px;
-            font-size: 13px;
-            color: #0071e3;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-
-        /* 修改密碼界面 */
-        #changePasswordScreen {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            justify-content: center;
-            align-items: center;
-            z-index: 100000;
-        }
-
-        #changePasswordScreen.active {
-            display: flex;
-        }
-
-        .container {
-            max-width: 768px;
-            margin: 0 auto;
-            padding: 20px 20px 100px;
-        }
-
-        /* Header */
-        .header {
+        .stat-box {
             text-align: center;
-            padding: 50px 0 30px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f5f5f7;
         }
-
-        .header h1 {
-            font-size: 28px;
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .stat-label { font-size: 12px; color: #86868b; }
+        .stat-box.completed .stat-number { color: #34c759; }
+        .stat-box.pending .stat-number { color: #ff9500; }
+        .stat-box.photos .stat-number { color: #0071e3; }
+        .export-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
             font-weight: 600;
-            letter-spacing: -0.5px;
+            cursor: pointer;
+            margin-bottom: 8px;
         }
-
-        .header p {
-            font-size: 15px;
+        .sync-status {
+            text-align: center;
+            font-size: 12px;
             color: #86868b;
             margin-top: 8px;
         }
-
-        /* Day Selector */
-        .day-selector {
-            display: flex;
-            gap: 8px;
-            padding: 0 5px;
-            margin-bottom: 16px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .day-btn {
-            flex: 0 0 auto;
-            min-width: 70px;
-            padding: 12px 10px;
-            border: none;
+        .completed-list { padding: 0 15px 15px; }
+        .completed-item {
+            background: white;
             border-radius: 12px;
-            background: #ffffff;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 15px;
+            margin-bottom: 10px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            text-align: center;
-        }
-
-        .day-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        }
-
-        .day-btn.active {
-            background: #0071e3;
-            color: #ffffff;
-            box-shadow: 0 4px 16px rgba(0,113,227,0.4);
-        }
-
-        .day-btn .day-date {
-            font-size: 12px;
-            opacity: 0.7;
-            margin-bottom: 2px;
-        }
-
-        .day-btn .day-name {
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .day-btn .day-count {
-            font-size: 16px;
-            font-weight: 700;
-            margin-top: 4px;
-        }
-
-        .day-btn.raymond {
-            background: linear-gradient(135deg, #ff9500, #ff5e3a);
-            color: #ffffff;
-        }
-
-        .day-btn.raymond.active {
-            background: #ffffff;
-            color: #ff9500;
-        }
-
-        /* Overall Stats Bar */
-        .overall-stats {
             display: flex;
-            gap: 12px;
-            padding: 0 5px;
-            margin-bottom: 20px;
-        }
-
-        .overall-stat {
-            flex: 1;
-            background: #ffffff;
-            border-radius: 14px;
-            padding: 16px;
-            text-align: center;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
-
-        .overall-stat.completed {
-            border-top: 4px solid #34c759;
-        }
-
-        .overall-stat.pending {
-            border-top: 4px solid #ff9500;
-        }
-
-        .overall-stat .stat-label {
-            font-size: 12px;
-            color: #86868b;
-            margin-bottom: 4px;
-        }
-
-        .overall-stat .stat-value {
-            font-size: 32px;
-            font-weight: 700;
-        }
-
-        .overall-stat.completed .stat-value {
-            color: #34c759;
-        }
-
-        .overall-stat.pending .stat-value {
-            color: #ff9500;
-        }
-
-        .overall-stat .stat-sub {
-            font-size: 11px;
-            color: #86868b;
-            margin-top: 2px;
-        }
-
-        /* Day Stats Bar */
-        .day-stats {
-            display: flex;
-            gap: 12px;
-            padding: 0 5px;
-            margin-bottom: 20px;
-        }
-
-        .day-stat {
-            flex: 1;
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 14px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-
-        .day-stat.completed {
-            border-left: 4px solid #34c759;
-        }
-
-        .day-stat.pending {
-            border-left: 4px solid #ff9500;
-        }
-
-        .day-stat .stat-label {
-            font-size: 11px;
-            color: #86868b;
-            margin-bottom: 4px;
-        }
-
-        .day-stat .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-        }
-
-        .day-stat.completed .stat-value {
-            color: #34c759;
-        }
-
-        .day-stat.pending .stat-value {
-            color: #ff9500;
-        }
-
-        /* Store List */
-        .store-list {
-            display: none;
-        }
-
-        .store-list.active {
-            display: block;
-        }
-
-        .store-card {
-            background: #ffffff;
-            border-radius: 14px;
-            padding: 16px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            transition: all 0.3s;
-        }
-
-        .store-card.completed {
-            opacity: 0.6;
-            background: #f9f9f9;
-        }
-
-        .store-card.completed .store-id {
-            text-decoration: line-through;
-        }
-        
-        /* 店舖卡片圖片 */
-        .store-card-imgs {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-content: flex-start;
-            justify-content: flex-end;
-        }
-        
-        .store-card-thumb {
-            width: 50px;
-            height: 50px;
-            object-fit: cover;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 2px solid #e5e5ea;
-        }
-        
-        .store-card-add, .store-card-add-only {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #007aff;
-            background: #f0f8ff;
-        }
-        
-        .store-card-add {
-            width: 50px;
-            height: 50px;
-            border: 2px dashed #007aff;
-        }
-        
-        .store-card-add-only {
-            padding: 8px 16px;
-            border: 1px solid #007aff;
-        }
-
-        .checkbox-wrapper {
-            flex: 0 0 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .checkbox {
-            width: 24px;
-            height: 24px;
-            border: 2px solid #d1d1d6;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            background: #ffffff;
-        }
-
-        .checkbox.checked {
-            background: #34c759;
-            border-color: #34c759;
-        }
-
-        .checkbox.checked::after {
-            content: '✓';
-            color: #ffffff;
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        .store-content {
-            flex: 1;
-        }
-
-        .store-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 6px;
-        }
-
-        .store-number {
-            width: 42px;
-            height: 42px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .store-info {
-            flex: 1;
-        }
-
-        .store-id {
-            font-size: 17px;
-            font-weight: 600;
-            color: #1d1d1f;
-        }
-
-        .store-meta {
-            display: flex;
-            gap: 8px;
-            margin-top: 4px;
-            flex-wrap: wrap;
-        }
-
-        .store-seq {
-            font-size: 12px;
-            color: #86868b;
-        }
-
-        .day-badge {
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-weight: 500;
-            background: #f0f0f5;
-            color: #636366;
-        }
-
-        .staff-badge {
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-weight: 500;
-        }
-
-        .staff-badge.raymond {
-            background: #fff3e0;
-            color: #ff9500;
-        }
-
-        .staff-badge.dj {
-            background: #e3f2fd;
-            color: #007aff;
-        }
-
-        .store-address {
-            font-size: 13px;
-            color: #3d3d3f;
-            line-height: 1.4;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #86868b;
-        }
-
-        .empty-state .icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-
-        /* Completed Page */
-        .completed-header {
-            padding: 20px 0;
-        }
-
-        .completed-header h2 {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .completed-header p {
-            font-size: 14px;
-            color: #86868b;
-        }
-
-        /* Completed List New Layout */
-        .completed-list-table {
-            background: #ffffff;
-            border-radius: 14px;
-            overflow: hidden;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
-
-        .completed-table-header {
-            display: flex;
-            background: #f5f5f7;
-            padding: 14px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #86868b;
-            border-bottom: 1px solid #e5e5e5;
-        }
-
-        .completed-table-header .col-time {
-            width: 100px;
-        }
-
-        .completed-table-header .col-store {
-            flex: 1;
-            text-align: center;
-        }
-
-        .completed-table-header .col-img {
-            width: 60px;
-            text-align: center;
-        }
-
-        .completed-table-row {
-            display: flex;
-            padding: 14px 16px;
-            border-bottom: 1px solid #f0f0f0;
-            align-items: center;
-        }
-
-        .completed-table-row:last-child {
-            border-bottom: none;
-        }
-
-        .completed-table-row .row-time {
-            width: 100px;
-            font-size: 14px;
-            color: #34c759;
-            font-weight: 500;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 6px;
-            transition: background 0.2s;
-        }
-        
-        .completed-table-row .row-time:hover {
-            background: rgba(52, 199, 89, 0.15);
-        }
-
-        .completed-table-row .row-store {
-            flex: 1;
-            font-size: 14px;
-            color: #1d1d1f;
-            text-align: center;
-        }
-
-        .completed-table-row .row-img {
-            width: 60px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 6px;
-        }
-
-        /* 自定義時間選擇器 */
-        .time-picker-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .time-picker-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.4);
-        }
-
-        .time-picker-content {
-            position: relative;
-            background: #fff;
-            border-radius: 16px;
-            width: 300px;
-            max-width: 90vw;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-        }
-
-        .time-picker-title {
-            text-align: center;
-            padding: 16px;
-            font-size: 16px;
-            font-weight: 600;
-            color: #1d1d1f;
-            border-bottom: 1px solid #e5e5ea;
-        }
-
-        .time-picker-body {
-            display: flex;
-            padding: 20px;
-            gap: 20px;
-        }
-
-        .time-col {
-            flex: 1;
-            text-align: center;
-        }
-
-        .time-col-label {
-            font-size: 13px;
-            color: #86868b;
-            margin-bottom: 10px;
-        }
-
-        .time-scroll {
-            height: 150px;
-            overflow-y: auto;
-            scrollbar-width: none;
-        }
-
-        .time-scroll::-webkit-scrollbar {
-            display: none;
-        }
-
-        .time-option {
-            padding: 10px;
-            font-size: 18px;
-            color: #86868b;
-            border-radius: 8px;
-            transition: all 0.2s;
-        }
-
-        .time-option.selected {
-            background: #007aff;
-            color: #fff;
-            font-weight: 600;
-        }
-
-        .time-picker-btns {
-            display: flex;
-            border-top: 1px solid #e5e5ea;
-        }
-
-        .time-btn {
-            flex: 1;
-            padding: 14px;
-            text-align: center;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        .time-btn.cancel {
-            color: #86868b;
-            border-right: 1px solid #e5e5ea;
-        }
-
-        .time-btn.confirm {
-            color: #007aff;
-        }
-
-        /* Image Thumbnail */
-        .img-thumb {
-            width: 36px;
-            height: 36px;
-            border-radius: 6px;
-            object-fit: cover;
-            cursor: pointer;
-            border: 1px solid #e5e5e5;
-            transition: transform 0.2s;
-        }
-
-        .img-thumb:hover {
-            transform: scale(1.1);
-        }
-
-        .img-add-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 6px;
-            border: 2px dashed #d1d1d6;
-            background: #f5f5f7;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            color: #86868b;
-            transition: all 0.2s;
-        }
-
-        .img-add-btn:hover {
-            border-color: #0071e3;
-            color: #0071e3;
-            background: #f0f7ff;
-        }
-
-        /* Export Preview Container */
-        .export-preview {
-            position: fixed;
-            top: -9999px;
-            left: -9999px;
-            width: 600px;
-            padding: 30px;
-            background: #ffffff;
-        }
-
-        .export-preview-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .export-preview-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .export-preview-table th,
-        .export-preview-table td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-        }
-
-        .export-preview-table th {
-            background: #f5f5f7;
-            font-weight: 600;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .store-card, .completed-simple-card {
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        /* Bottom Tab Bar */
-        .tab-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255,255,255,0.92);
-            backdrop-filter: saturate(180%) blur(20px);
-            -webkit-backdrop-filter: saturate(180%) blur(20px);
-            border-top: 0.5px solid rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: center;
-            padding: 8px 0;
-            padding-bottom: max(8px, env(safe-area-inset-bottom));
-            z-index: 100;
-        }
-
-        .tab-btn {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 8px 20px;
-            border: none;
-            background: none;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .tab-btn .icon {
-            font-size: 24px;
-            margin-bottom: 4px;
-        }
-
-        .tab-btn span {
-            font-size: 11px;
-            color: #86868b;
-            font-weight: 500;
-        }
-
-        .tab-btn.active span {
-            color: #0071e3;
-        }
-
-        /* Page Container */
-        .page {
-            display: none;
-        }
-
-        .page.active {
-            display: block;
-        }
-
-        /* Export Button */
-        .export-bar {
-            padding: 16px 5px;
-            display: flex;
-            gap: 12px;
-        }
-
-        .export-btn {
-            flex: 1;
-            padding: 14px 20px;
-            border: none;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .export-btn.primary {
-            background: linear-gradient(135deg, #007aff, #5856d6);
-            color: #ffffff;
-        }
-
-        .export-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0,122,255,0.4);
-        }
-
-        .completed-stats-bar {
-            display: flex;
-            gap: 12px;
-            padding: 0 5px;
-            margin-bottom: 20px;
-        }
-
-        .completed-stat-card {
-            flex: 1;
-            background: #ffffff;
-            border-radius: 14px;
-            padding: 16px;
-            text-align: center;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
-
-        .completed-stat-card.done {
-            border-top: 4px solid #34c759;
-        }
-
-        .completed-stat-card.remain {
-            border-top: 4px solid #ff9500;
-        }
-
-        .completed-stat-card.photo {
-            border-top: 4px solid #007aff;
-        }
-
-        .completed-stat-card .stat-label {
-            font-size: 12px;
-            color: #86868b;
-            margin-bottom: 4px;
-        }
-
-        .completed-stat-card .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-        }
-
-        .completed-stat-card.done .stat-value {
-            color: #34c759;
-        }
-
-        .completed-stat-card.remain .stat-value {
-            color: #ff9500;
-        }
-
-        .completed-stat-card.photo .stat-value {
-            color: #007aff;
-        }
-
-        /* Lightbox */
-        .lightbox {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 1000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-
-        .lightbox.active {
-            display: flex;
-        }
-
-        .lightbox-close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: #ffffff;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .lightbox-delete {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: rgba(255,59,48,0.8);
-            border: none;
-            color: #ffffff;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .lightbox-zoom-controls {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 12px;
-        }
-        
-        .lightbox-zoom-btn {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: #ffffff;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .lightbox-img {
-            max-width: 90%;
-            max-height: 80%;
-            border-radius: 8px;
-            transition: transform 0.2s ease;
-            cursor: zoom-in;
-            will-change: transform;
-            touch-action: none;
-        }
-        
-        .lightbox-img.zoomed {
-            transform: scale(2);
-            cursor: move;
-        }
-
-        .lightbox-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: #ffffff;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .lightbox-nav.prev {
-            left: 20px;
-        }
-
-        .lightbox-nav.next {
-            right: 20px;
-        }
-
-        .lightbox-counter {
-            position: absolute;
-            bottom: 30px;
-            color: #ffffff;
-            font-size: 14px;
-        }
-        
-        /* 圖片預覽確認彈窗 */
-        .preview-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 1100;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-        
-        .preview-modal.active {
-            display: flex;
-        }
-        
-        .preview-modal-content {
-            background: #1c1c1e;
-            border-radius: 14px;
-            padding: 20px;
-            max-width: 95%;
-            max-height: 90%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .preview-modal-title {
-            color: #ffffff;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-        
-        .preview-modal-img-wrapper {
-            max-width: 100%;
-            max-height: 60vh;
-            overflow: hidden;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .preview-modal-img-wrapper img {
-            max-width: 100%;
-            max-height: 60vh;
-            object-fit: contain;
-            transition: transform 0.2s;
-            cursor: zoom-in;
-            will-change: transform;
-            touch-action: none;
-        }
-        
-        .preview-modal-hint {
-            color: rgba(255,255,255,0.6);
-            font-size: 12px;
-            margin: 12px 0;
-        }
-        
-        .preview-modal-btns {
-            display: flex;
-            gap: 12px;
-            margin-top: 16px;
-        }
-        
-        .preview-modal-btn {
-            padding: 12px 24px;
-            border-radius: 10px;
-            border: none;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-        
-        .preview-modal-btn.cancel {
-            background: #3a3a3c;
-            color: #ffffff;
-        }
-        
-        .preview-modal-btn.confirm {
-            background: #34c759;
-            color: #ffffff;
-        }
-
-        /* Image Modal (for add photo) */
-        .img-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 500;
-            display: none;
-            align-items: flex-end;
-        }
-
-        .img-modal.active {
-            display: flex;
-        }
-
-        .img-modal-content {
-            background: #ffffff;
-            border-radius: 20px 20px 0 0;
-            padding: 20px;
-            width: 100%;
-            animation: slideUp 0.3s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-
-        .img-modal-title {
-            font-size: 17px;
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #e5e5e5;
-        }
-
-        .img-modal-btn {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: background 0.2s;
-        }
-
-        .img-modal-btn.photo {
-            background: #007aff;
-            color: #ffffff;
-        }
-
-        .img-modal-btn.gallery {
-            background: #f5f5f7;
-            color: #1d1d1f;
-        }
-
-        .img-modal-btn.cancel {
-            background: #f5f5f7;
-            color: #ff3b30;
-            margin-bottom: 0;
-        }
-
-        /* Photo Gallery Page */
-        .gallery-header {
-            padding: 20px 0;
-            display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
         }
-
-        .gallery-header h2 {
-            font-size: 24px;
-            font-weight: 600;
-        }
-
-        .gallery-store-selector {
-            display: flex;
-            gap: 8px;
-            padding: 0 5px;
-            margin-bottom: 16px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .gallery-store-btn {
-            flex: 0 0 auto;
-            padding: 10px 16px;
-            border: none;
-            border-radius: 20px;
-            background: #ffffff;
+        .completed-info { flex: 1; }
+        .completed-time {
             font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: all 0.2s;
+            color: #34c759;
+            font-weight: 600;
+            margin-bottom: 4px;
         }
-
-        .gallery-store-btn.active {
-            background: #007aff;
-            color: #ffffff;
+        .completed-store-id {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1d1d1f;
         }
-
-        .gallery-store-btn.has-img {
-            position: relative;
-        }
-
-        .gallery-store-btn.has-img::after {
-            content: '';
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            width: 10px;
-            height: 10px;
-            background: #34c759;
-            border-radius: 50%;
-            border: 2px solid #ffffff;
-        }
-
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 4px;
-            background: #ffffff;
-            border-radius: 14px;
-            overflow: hidden;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 15px;
         }
-
         .gallery-item {
             aspect-ratio: 1;
-            cursor: pointer;
+            background: #f5f5f7;
+            border-radius: 10px;
             overflow: hidden;
+            position: relative;
         }
-
         .gallery-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.3s;
         }
-
-        .gallery-item:hover img {
-            transform: scale(1.05);
-        }
-
-        /* 圖片庫新版左右布局 */
-        .gallery-container {
-            display: flex;
-            gap: 12px;
-            height: calc(100vh - 200px);
-        }
-        
-        .gallery-store-list {
-            width: 90px;
-            flex-shrink: 0;
-            background: #ffffff;
-            border-radius: 14px;
-            padding: 10px 8px;
-            overflow-y: auto;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
-        
-        .gallery-store-item {
+        .password-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 12px 8px;
-            margin-bottom: 8px;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .password-screen.hidden { display: none; }
+        .password-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 15px;
+            border: none;
             border-radius: 10px;
-            background: #f5f5f7;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .gallery-store-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .gallery-store-item.active {
-            background: #007aff;
-            color: #ffffff;
-        }
-        
-        .gallery-store-item .store-num {
             font-size: 18px;
-            font-weight: 600;
+            text-align: center;
+            margin-bottom: 15px;
         }
-        
-        .gallery-store-item .store-img-count {
-            font-size: 11px;
-            opacity: 0.7;
-            margin-top: 2px;
-        }
-        
-        .gallery-store-item.has-img::after {
-            content: '';
-            display: block;
-            width: 6px;
-            height: 6px;
-            background: #34c759;
-            border-radius: 50%;
-            margin-top: 4px;
-        }
-        
-        .gallery-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: #ffffff;
-            border-radius: 14px;
-            padding: 16px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-            overflow: hidden;
-        }
-        
-        .gallery-content-header {
-            margin-bottom: 12px;
-        }
-        
-        .gallery-content-title {
+        .password-btn {
+            width: 100%;
+            max-width: 300px;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: #0071e3;
+            color: white;
             font-size: 16px;
             font-weight: 600;
-            color: #1c1c1e;
-        }
-        
-        .gallery-content-subtitle {
-            font-size: 13px;
-            color: #86868b;
-            margin-top: 4px;
-        }
-        
-        /* 圖片庫主容器 */
-        #galleryImgGrid {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-        }
-        
-        /* 每個店舖的圖片區域 */
-        .gallery-store-section {
-            margin-bottom: 24px;
-        }
-        
-        .gallery-store-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
-            padding: 0 8px;
-        }
-        
-        .gallery-store-header .store-id {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1c1c1e;
-            white-space: nowrap;
-        }
-        
-        .gallery-store-addr {
-            font-size: 13px;
-            color: #86868b;
-            padding: 8px;
-            line-height: 1.5;
-            word-wrap: break-word;
-            word-break: break-all;
-            white-space: nowrap;
-        }
-        
-        .gallery-no-images {
-            padding: 40px 20px;
-            text-align: center;
-            color: #86868b;
-            background: #f5f5f7;
-            border-radius: 12px;
-            margin: 0 8px;
-        }
-        
-
-        
-        /* 店舖圖片網格 */
-        .store-img-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-        }
-        
-        .gallery-img-item {
-            aspect-ratio: 1;
-            border-radius: 16px;
-            overflow: hidden;
-            background: #f5f5f7;
             cursor: pointer;
-            position: relative;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        
-        .gallery-img-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .password-error {
+            color: #ff3b30;
+            margin-top: 10px;
+            display: none;
         }
-        
-        .gallery-img-add {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px dashed #d1d1d6;
-            color: #86868b;
-            font-size: 28px;
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 1001;
+            display: none;
         }
-        
-        .gallery-empty {
-            grid-column: 1 / -1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-            text-align: center;
-            color: #86868b;
-        }
-        
-        .gallery-store-info {
-            background: #ffffff;
-            border-radius: 14px;
-            padding: 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
-
-        .gallery-store-info .store-id {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .gallery-store-info .store-addr {
-            font-size: 13px;
-            color: #86868b;
-        }
-
-        /* Responsive */
-        @media (max-width: 400px) {
-            .store-address {
-                padding-left: 0;
-                margin-top: 8px;
-            }
-            .day-btn {
-                min-width: 60px;
-                padding: 10px 8px;
-            }
-            .day-btn .day-date {
-                font-size: 11px;
-            }
-            .day-btn .day-name {
-                font-size: 13px;
-            }
-            .img-thumb {
-                width: 32px;
-                height: 32px;
-            }
-            .img-add-btn {
-                width: 32px;
-                height: 32px;
-            }
-        }
+        .toast.show { display: block; }
     </style>
 </head>
 <body>
-    <!-- 密碼保護界面 -->
-    <div id="passwordScreen">
-        <div class="password-box">
-            <h2>🔒 訪問受限</h2>
-            <p>請輸入密碼以繼續</p>
-            <input type="password" id="passwordInput" class="password-input" placeholder="輸入密碼" maxlength="20">
-            <button class="password-btn" onclick="checkPassword()">進入</button>
-            <div id="passwordError" class="password-error">密碼錯誤</div>
-            <div class="password-change-link" onclick="showChangePassword()">修改密碼</div>
-        </div>
+    <!-- 密碼界面 -->
+    <div id="passwordScreen" class="password-screen">
+        <h2 style="color: white; margin-bottom: 20px;">請輸入密碼</h2>
+        <input type="password" id="passwordInput" class="password-input" placeholder="密碼">
+        <button class="password-btn" onclick="checkPassword()">確認</button>
+        <div id="passwordError" class="password-error">密碼錯誤</div>
     </div>
 
-    <!-- 修改密碼界面 -->
-    <div id="changePasswordScreen">
-        <div class="password-box">
-            <h2>🔐 修改密碼</h2>
-            <p>請先輸入舊密碼，再設置新密碼</p>
-            <input type="password" id="oldPasswordInput" class="password-input" placeholder="舊密碼" maxlength="20" style="margin-bottom: 10px;">
-            <input type="password" id="newPasswordInput" class="password-input" placeholder="新密碼（至少4位）" maxlength="20" style="margin-bottom: 15px;">
-            <button class="password-btn" onclick="changePassword()">確認修改</button>
-            <div id="changePasswordError" class="password-error"></div>
-            <div class="password-change-link" onclick="hideChangePassword()">返回登入</div>
-        </div>
-    </div>
-
-    <div class="container">
-        <!-- Page 1: 查詢 -->
-        <div class="page active" id="page-query">
-            <div class="header">
-                <h1>Small Fan Stand</h1>
-                <p>送貨路線規劃</p>
-            </div>
-
-            <!-- Day Selector -->
-            <div class="day-selector" id="daySelector">
-                <button class="day-btn active" data-day="wed">
-                    <div class="day-date">8/4</div>
-                    <div class="day-name">星期三</div>
-                    <div class="day-count" id="count-wed">0/14</div>
-                </button>
-                <button class="day-btn" data-day="thu">
-                    <div class="day-date">9/4</div>
-                    <div class="day-name">星期四</div>
-                    <div class="day-count" id="count-thu">0/15</div>
-                </button>
-                <button class="day-btn" data-day="fri">
-                    <div class="day-date">10/4</div>
-                    <div class="day-name">星期五</div>
-                    <div class="day-count" id="count-fri">0/13</div>
-                </button>
-                <button class="day-btn" data-day="mon">
-                    <div class="day-date">13/4</div>
-                    <div class="day-name">星期一</div>
-                    <div class="day-count" id="count-mon">0/10</div>
-                </button>
-                <button class="day-btn raymond" data-day="raymond">
-                    <div class="day-name">Raymond</div>
-                    <div class="day-count" id="count-raymond">0/8</div>
-                </button>
-            </div>
-
-            <!-- Overall Stats -->
-            <div class="overall-stats">
-                <div class="overall-stat completed">
-                    <div class="stat-label">總已完成</div>
-                    <div class="stat-value" id="total-completed">0</div>
-                    <div class="stat-sub">/ 60 項</div>
-                </div>
-                <div class="overall-stat pending">
-                    <div class="stat-label">總未完成</div>
-                    <div class="stat-value" id="total-pending">60</div>
-                    <div class="stat-sub">/ 60 項</div>
-                </div>
-            </div>
-
-            <!-- Day Stats -->
-            <div class="day-stats">
-                <div class="day-stat completed">
-                    <div class="stat-label">當日已完成</div>
-                    <div class="stat-value" id="day-completed">0</div>
-                </div>
-                <div class="day-stat pending">
-                    <div class="stat-label">當日未完成</div>
-                    <div class="stat-value" id="day-pending">0</div>
-                </div>
-            </div>
-
-            <!-- Store Lists -->
-            <div class="store-list active" id="list-wed"></div>
-            <div class="store-list" id="list-thu"></div>
-            <div class="store-list" id="list-fri"></div>
-            <div class="store-list" id="list-mon"></div>
-            <div class="store-list" id="list-raymond"></div>
+    <!-- 主界面 -->
+    <div id="mainContent" style="display: none;">
+        <div class="header">
+            <h1>SFS 送貨系統</h1>
+            <div class="day-selector" id="daySelector"></div>
         </div>
 
-        <!-- Page 2: 已完成 -->
-        <div class="page" id="page-completed">
+        <!-- 送貨列表頁 -->
+        <div id="listPage" class="page active">
+            <div class="store-list" id="storeList"></div>
+        </div>
+
+        <!-- 已完成頁 -->
+        <div id="completedPage" class="page">
             <div class="completed-header">
-                <h2>已完成</h2>
-                <p id="completed-summary">按打剔先後排序</p>
-            </div>
-
-            <!-- Completed Stats -->
-            <div class="completed-stats-bar">
-                <div class="completed-stat-card done">
-                    <div class="stat-label">已完成</div>
-                    <div class="stat-value" id="page-completed-count">0</div>
-                </div>
-                <div class="completed-stat-card remain">
-                    <div class="stat-label">未完成</div>
-                    <div class="stat-value" id="page-pending-count">60</div>
-                </div>
-                <div class="completed-stat-card photo">
-                    <div class="stat-label">已拍照</div>
-                    <div class="stat-value" id="page-photo-count">0</div>
-                </div>
-            </div>
-
-            <!-- Export Button -->
-            <div class="export-bar">
-                <button class="export-btn primary" onclick="exportToImage()">
-                    📸 導出 JPG
-                </button>
-                <button class="export-btn" onclick="exportWithImages()" style="background: linear-gradient(135deg, #34c759, #30b350); color: #ffffff;">
-                    🖼️ 匯出圖文報告
-                </button>
-                <button class="export-btn" onclick="forceUpload()" style="background: linear-gradient(135deg, #0071e3, #0051a2); color: #ffffff;" id="uploadBtn">
-                    ⬆️ 上載數據
-                </button>
-                <button class="export-btn" onclick="forceDownload()" style="background: linear-gradient(135deg, #5856d6, #4c4ab8); color: #ffffff;" id="downloadBtn">
-                    ⬇️ 下載數據
-                </button>
-            </div>
-            <div id="syncStatus" style="text-align: center; font-size: 12px; color: #86868b; margin-top: 8px; padding: 0 20px;">等待同步</div>
-
-            <div id="completedList"></div>
-        </div>
-
-        <!-- Page 3: 圖片庫 -->
-        <div class="page" id="page-gallery">
-            <div class="gallery-header">
-                <h2>📷 圖片庫</h2>
-            </div>
-
-            <!-- 新的左右布局 -->
-            <div class="gallery-container">
-                <!-- 左邊：店號列表 -->
-                <div class="gallery-store-list" id="galleryStoreList"></div>
-                
-                <!-- 右邊：圖片展示 -->
-                <div class="gallery-content">
-                    <div class="gallery-content-header" id="galleryContentHeader">
-                        <div class="gallery-content-title">選擇店舖查看圖片</div>
+                <div class="completed-stats">
+                    <div class="stat-box completed">
+                        <div class="stat-number" id="statCompleted">0</div>
+                        <div class="stat-label">已完成</div>
                     </div>
-                    <div class="gallery-img-grid" id="galleryImgGrid">
-                        <div class="gallery-empty">選擇左側店舖</div>
+                    <div class="stat-box pending">
+                        <div class="stat-number" id="statPending">0</div>
+                        <div class="stat-label">未完成</div>
+                    </div>
+                    <div class="stat-box photos">
+                        <div class="stat-number" id="statPhotos">0</div>
+                        <div class="stat-label">已拍照</div>
                     </div>
                 </div>
+                <button class="export-btn" onclick="forceUpload()" style="background: #0071e3; color: white;" id="uploadBtn">⬆️ 上載數據</button>
+                <button class="export-btn" onclick="forceDownload()" style="background: #5856d6; color: white;" id="downloadBtn">⬇️ 下載數據</button>
+                <div class="sync-status" id="syncStatus">等待同步</div>
             </div>
+            <div class="completed-list" id="completedList"></div>
         </div>
-    </div>
 
-    <!-- Tab Bar -->
-    <div class="tab-bar">
-        <button class="tab-btn active" data-page="query">
-            <span class="icon">📋</span>
-            <span>查詢</span>
-        </button>
-        <button class="tab-btn" data-page="completed">
-            <span class="icon">✓</span>
-            <span>已完成</span>
-        </button>
-        <button class="tab-btn" data-page="gallery">
-            <span class="icon">📷</span>
-            <span>圖片庫</span>
-        </button>
-    </div>
+        <!-- 圖片庫頁 -->
+        <div id="galleryPage" class="page">
+            <div class="gallery-grid" id="galleryGrid"></div>
+        </div>
 
-    <!-- Image Add Modal -->
-    <div class="img-modal" id="imgModal">
-        <div class="img-modal-content">
-            <div class="img-modal-title" id="imgModalTitle">為店號 0000 添加圖片</div>
-            <button class="img-modal-btn photo" onclick="takePhoto()">
-                📷 立即拍攝
+        <!-- 底部導航 -->
+        <div class="bottom-nav">
+            <button class="nav-btn active" onclick="showPage('list')">
+                <i>📋</i>列表
             </button>
-            <button class="img-modal-btn gallery" onclick="chooseFromGallery()">
-                🖼️ 從相冊選擇
+            <button class="nav-btn" onclick="showPage('completed')">
+                <i>✓</i>已完成
             </button>
-            <button class="img-modal-btn cancel" onclick="closeImgModal()">
-                取消
+            <button class="nav-btn" onclick="showPage('gallery')">
+                <i>📷</i>圖片庫
             </button>
         </div>
     </div>
 
-    <!-- Lightbox -->
-    <div class="lightbox" id="lightbox">
-        <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-        <button class="lightbox-delete" id="lightboxDelete" onclick="deleteCurrentImage()">🗑️</button>
-        <button class="lightbox-nav prev" id="lightboxPrev" onclick="lightboxNav(-1)">‹</button>
-        <img class="lightbox-img" id="lightboxImg" src="" alt="" onclick="toggleZoom()">
-        <button class="lightbox-nav next" id="lightboxNext" onclick="lightboxNav(1)">›</button>
-        <div class="lightbox-zoom-controls">
-            <button class="lightbox-zoom-btn" onclick="zoomIn()">+</button>
-            <button class="lightbox-zoom-btn" onclick="zoomOut()">−</button>
-            <button class="lightbox-zoom-btn" onclick="resetZoom()">⟲</button>
-        </div>
-        <div class="lightbox-counter" id="lightboxCounter">1 / 3</div>
-    </div>
-
-    <!-- 圖片預覽確認彈窗 -->
-    <div class="preview-modal" id="previewModal">
-        <div class="preview-modal-content">
-            <div class="preview-modal-title">預覽圖片</div>
-            <div class="preview-modal-img-wrapper">
-                <img id="previewModalImg" src="" alt="預覽">
-            </div>
-            <div class="preview-modal-hint">雙指縮放 / 單指滑動查看</div>
-            <div class="preview-modal-btns">
-                <button class="preview-modal-btn cancel" onclick="cancelPreview()">取消</button>
-                <button class="preview-modal-btn confirm" onclick="confirmPreview()">確認添加</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hidden File Input -->
-    <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none;">
-    <input type="file" id="galleryInput" accept="image/*" style="display:none;">
+    <div id="toast" class="toast"></div>
 
     <script>
-        // ===== 密碼保護（雲端同步版） =====
-        // 密碼和版本號從 Firebase 獲取，確保全員同步
-        let ACCESS_PASSWORD = "CS1908";
-        let PASSWORD_VERSION = 0;
-        let isPasswordLoaded = false;
+        // ===== 數據配置 =====
+        const storeData = {
+            "4/8": [{ id: 2130, address: "地址1" }, { id: 2410, address: "地址2" }],
+            "4/9": [{ id: 3150, address: "地址3" }, { id: 3280, address: "地址4" }],
+            "4/10": [{ id: 4090, address: "地址5" }, { id: 4810, address: "地址6" }]
+        };
 
-        // 從雲端加載密碼配置
-        async function loadPasswordConfig() {
-            if (!isFirebaseReady) {
-                // Firebase 未就緒時使用默認密碼
-                return;
+        const personnel = { raymond: [2130, 3150, 4090], dj: [2410, 3280, 4810] };
+
+        // ===== 全局變量 =====
+        let firebaseDB = null;
+        let isFirebaseReady = false;
+        let completedStores = {};
+        let imageCache = {};
+        let ACCESS_PASSWORD = 'CS1908';
+
+        // ===== 初始化 =====
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLoginStatus();
+        });
+
+        function checkLoginStatus() {
+            if (sessionStorage.getItem('fanStandVerified') === 'true') {
+                document.getElementById('passwordScreen').classList.add('hidden');
+                document.getElementById('mainContent').style.display = 'block';
+                init();
             }
-            
+        }
+
+        async function init() {
             try {
-                const snapshot = await firebaseDB.ref('passwordConfig').once('value');
-                const config = snapshot.val();
-                
-                if (config) {
-                    ACCESS_PASSWORD = config.password || "CS1908";
-                    PASSWORD_VERSION = config.version || 0;
-                } else {
-                    // 首次使用，初始化默認密碼
-                    await firebaseDB.ref('passwordConfig').set({
-                        password: "CS1908",
-                        version: 0,
-                        updatedAt: Date.now()
-                    });
-                }
-                isPasswordLoaded = true;
-                console.log('[Password] 密碼配置已加載，版本:', PASSWORD_VERSION);
-                
-                // 檢查是否需要重新驗證
-                checkPasswordVersion();
-            } catch (error) {
-                console.error('[Password] 加載密碼配置失敗:', error);
+                initDaySelector();
+                initFirebase();
+                loadCompletedStores();
+                renderStoreList();
+                updateStats();
+            } catch (e) {
+                console.error('初始化失敗:', e);
+                showToast('初始化失敗', 'error');
             }
         }
 
-        // 檢查密碼版本（若雲端版本較高，需重新驗證）
-        function checkPasswordVersion() {
-            const localVersion = parseInt(sessionStorage.getItem('fanStandPasswordVersion') || '-1');
-            if (PASSWORD_VERSION > localVersion) {
-                // 密碼已修改，清除驗證狀態
-                sessionStorage.removeItem('fanStandVerified');
-                sessionStorage.removeItem('fanStandPasswordVersion');
-                document.getElementById('passwordScreen').classList.remove('hidden');
-                showToast('密碼已更新，請重新登入', 'info');
-            }
-        }
-
-        // 檢查是否已驗證
-        function isPasswordVerified() {
-            return sessionStorage.getItem('fanStandVerified') === 'true';
-        }
-
-        // 驗證密碼
+        // ===== 密碼驗證 =====
         async function checkPassword() {
             const input = document.getElementById('passwordInput').value;
-            
-            // 確保密碼已加載
-            if (!isPasswordLoaded && isFirebaseReady) {
-                await loadPasswordConfig();
-            }
-            
             if (input === ACCESS_PASSWORD) {
                 sessionStorage.setItem('fanStandVerified', 'true');
-                sessionStorage.setItem('fanStandPasswordVersion', PASSWORD_VERSION.toString());
                 document.getElementById('passwordScreen').classList.add('hidden');
+                document.getElementById('mainContent').style.display = 'block';
                 document.getElementById('passwordError').style.display = 'none';
+                await init();
+                showToast('登入成功', 'success');
             } else {
                 document.getElementById('passwordError').style.display = 'block';
                 document.getElementById('passwordInput').value = '';
-                document.getElementById('passwordInput').focus();
             }
         }
 
-        // 顯示修改密碼界面
-        function showChangePassword() {
-            document.getElementById('changePasswordScreen').classList.add('active');
-            document.getElementById('oldPasswordInput').value = '';
-            document.getElementById('newPasswordInput').value = '';
-            document.getElementById('changePasswordError').style.display = 'none';
-            setTimeout(() => document.getElementById('oldPasswordInput').focus(), 100);
-        }
-
-        // 隱藏修改密碼界面
-        function hideChangePassword() {
-            document.getElementById('changePasswordScreen').classList.remove('active');
-            document.getElementById('passwordInput').value = '';
-            document.getElementById('passwordInput').focus();
-        }
-
-        // 修改密碼（更新到雲端，全员生效）
-        async function changePassword() {
-            const oldPass = document.getElementById('oldPasswordInput').value;
-            const newPass = document.getElementById('newPasswordInput').value;
-            const errorDiv = document.getElementById('changePasswordError');
-
-            if (oldPass !== ACCESS_PASSWORD) {
-                errorDiv.textContent = '舊密碼錯誤';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            if (newPass.length < 4) {
-                errorDiv.textContent = '新密碼至少需要4位';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            if (!isFirebaseReady) {
-                errorDiv.textContent = '雲端未連接，無法修改密碼';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            try {
-                // 更新雲端密碼，版本號 +1
-                const newVersion = PASSWORD_VERSION + 1;
-                await firebaseDB.ref('passwordConfig').set({
-                    password: newPass,
-                    version: newVersion,
-                    updatedAt: Date.now()
-                });
-                
-                // 更新本地變量
-                ACCESS_PASSWORD = newPass;
-                PASSWORD_VERSION = newVersion;
-                
-                alert('密碼修改成功！所有設備都需要使用新密碼登入。');
-                hideChangePassword();
-                
-                // 清除驗證狀態，要求重新登入
-                sessionStorage.removeItem('fanStandVerified');
-                sessionStorage.setItem('fanStandPasswordVersion', newVersion.toString());
-                document.getElementById('passwordScreen').classList.remove('hidden');
-                document.getElementById('passwordInput').value = '';
-                document.getElementById('passwordInput').focus();
-            } catch (error) {
-                console.error('[Password] 修改密碼失敗:', error);
-                errorDiv.textContent = '修改失敗: ' + error.message;
-                errorDiv.style.display = 'block';
-            }
-        }
-
-        // 監聽密碼變化（實時）
-        function listenPasswordChanges() {
-            if (!isFirebaseReady) return;
-            
-            firebaseDB.ref('passwordConfig').on('value', (snapshot) => {
-                const config = snapshot.val();
-                if (config) {
-                    const newVersion = config.version || 0;
-                    if (newVersion > PASSWORD_VERSION) {
-                        ACCESS_PASSWORD = config.password || "CS1908";
-                        PASSWORD_VERSION = newVersion;
-                        console.log('[Password] 檢測到密碼更新，版本:', PASSWORD_VERSION);
-                        checkPasswordVersion();
-                    }
-                }
-            });
-        }
-
-        // 頁面加載時檢查密碼
-        window.addEventListener('load', async function() {
-            // 等待 Firebase 初始化
-            const checkFirebase = setInterval(async () => {
-                if (isFirebaseReady) {
-                    clearInterval(checkFirebase);
-                    await loadPasswordConfig();
-                    listenPasswordChanges();
-                    
-                    if (isPasswordVerified()) {
-                        document.getElementById('passwordScreen').classList.add('hidden');
-                    } else {
-                        document.getElementById('passwordInput').focus();
-                    }
-                }
-            }, 500);
-            
-            // 超時處理（5秒後 Firebase 仍未就緒）
-            setTimeout(() => {
-                clearInterval(checkFirebase);
-                if (!isPasswordLoaded) {
-                    console.warn('[Password] Firebase 未就緒，使用本地默認密碼');
-                    if (isPasswordVerified()) {
-                        document.getElementById('passwordScreen').classList.add('hidden');
-                    } else {
-                        document.getElementById('passwordInput').focus();
-                    }
-                }
-            }, 5000);
-        });
-
-        // 監聽 Enter 鍵
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') checkPassword();
-            });
-            document.getElementById('newPasswordInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') changePassword();
-            });
-        });
-
-        // ===== 調試開關 =====
-        const DEBUG = false;
-        function log(...args) { if (DEBUG) console.log('[FanStand]', ...args); }
-        function err(...args) { if (DEBUG) console.error('[FanStand ERROR]', ...args); }
-
-        // ===== Firebase 配置 =====
-        const firebaseConfig = {
-            apiKey: "AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc",
-            authDomain: "fan-stand-delivery.firebaseapp.com",
-            databaseURL: "https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "fan-stand-delivery",
-            storageBucket: "fan-stand-delivery.firebasestorage.app",
-            messagingSenderId: "483067166242",
-            appId: "1:483067166242:web:2e70fab99dd6da60e7547b"
-        };
-
-        // Firebase 應用和數據庫引用
-        let firebaseApp = null;
-        let firebaseDB = null;
-        let isFirebaseReady = false;
-        const SYNC_INTERVAL = 30000; // 30秒自動同步一次
-
-        // 初始化 Firebase
+        // ===== Firebase 初始化 =====
         function initFirebase() {
             try {
-                // 檢查配置是否已填寫
-                if (firebaseConfig.apiKey === "YOUR_API_KEY") {
-                    console.warn('[Firebase] 配置未設置，使用本地模式');
-                    return false;
-                }
-                
-                firebaseApp = firebase.initializeApp(firebaseConfig);
+                const config = {
+                    apiKey: "AIzaSyDEMO_KEY",
+                    authDomain: "demo.firebaseapp.com",
+                    databaseURL: "https://demo-default-rtdb.firebaseio.com",
+                    projectId: "demo"
+                };
+                firebase.initializeApp(config);
                 firebaseDB = firebase.database();
                 isFirebaseReady = true;
-                console.log('[Firebase] 已初始化');
-                
-                // 開始監聽雲端數據變化
-                syncFromCloud();
-                
-                // 顯示同步狀態
-                updateSyncStatus('已連接雲端，等待同步');
-                
-                return true;
-            } catch (error) {
-                console.error('[Firebase] 初始化失敗:', error);
-                return false;
-            }
-        }
-
-        // ===== P0-修復: 簡化同步邏輯 =====
-        // 統一同步函數 - 強制上傳所有本地數據
-        async function syncToCloud() {
-            if (!isFirebaseReady) {
-                showToast('雲端未連接', 'error');
-                return;
-            }
-            
-            // 防止頻繁同步（最少間隔 3 秒）
-            const now = Date.now();
-            const lastSyncAttempt = parseInt(localStorage.getItem('fanStandLastSyncAttempt') || '0');
-            if (now - lastSyncAttempt < 3000) {
-                showToast('同步過於頻繁，請稍後再試', 'warning');
-                return;
-            }
-            localStorage.setItem('fanStandLastSyncAttempt', now.toString());
-            
-            updateSyncStatus('正在同步...');
-            
-            try {
-                // 獲取雲端當前版本
-                const cloudSnapshot = await firebaseDB.ref('deliveryData/version').once('value');
-                const cloudVersion = cloudSnapshot.val() || 0;
-                
-                // 獲取所有本地數據（不上傳是否有標記）
-                const localData = await getAllLocalData();
-                
-                console.log('[Firebase] 準備同步:', {
-                    storesCount: Object.keys(localData.stores).length,
-                    imagesCount: Object.keys(localData.images).length
-                });
-                
-                // 獲取雲端數據並合併
-                const cloudSnapshot = await firebaseDB.ref('deliveryData').once('value');
-                const cloudData = cloudSnapshot.val() || { stores: {}, images: {} };
-                
-                // 合併數據：本地優先（因為本地是最新編輯）
-                const mergedStores = { ...(cloudData.stores || {}), ...localData.stores };
-                const mergedImages = { ...(cloudData.images || {}), ...localData.images };
-                
-                console.log('[Firebase] 數據合併:', {
-                    cloudStores: Object.keys(cloudData.stores || {}).length,
-                    localStores: Object.keys(localData.stores).length,
-                    mergedStores: Object.keys(mergedStores).length
-                });
-                
-                // 上傳合併後的數據
-                const updates = {
-                    'deliveryData/stores': mergedStores,
-                    'deliveryData/images': mergedImages,
-                    'deliveryData/lastSync': Date.now(),
-                    'deliveryData/version': cloudVersion + 1
-                };
-                
-                await firebaseDB.ref().update(updates);
-                
-                // 更新本地版本號
-                localStorage.setItem('fanStandDataVersion', (cloudVersion + 1).toString());
-                localStorage.setItem('fanStandLastSync', Date.now().toString());
-                
-                showToast('同步成功', 'success');
-                updateSyncStatus('同步完成');
-                console.log('[Firebase] 同步成功');
-            } catch (error) {
-                console.error('[Firebase] 同步失敗:', error);
-                showToast('同步失敗: ' + error.message, 'error');
-                updateSyncStatus('同步失敗');
-                throw error;
-            }
-        }
-        
-        // 獲取所有本地數據（統一格式）
-        async function getAllLocalData() {
-            // 獲取商店數據
-            const stores = {};
-            for (const [key, value] of Object.entries(completedStores)) {
-                stores[key] = { time: value.time };
-            }
-            
-            // 獲取圖片數據
-            const images = {};
-            const allImages = await getAllImages();
-            allImages.forEach(img => {
-                const imageKey = `${img.storeKey}_${img.imageId}`;
-                images[imageKey] = {
-                    storeKey: img.storeKey,
-                    imageId: img.imageId,
-                    imageData: img.imageData,
-                    time: img.time || Date.now()
-                };
-            });
-            
-            return { stores, images };
-        }
-
-        // 獲取待同步的變更
-        function getPendingChanges() {
-            const changes = localStorage.getItem('fanStandPendingChanges');
-            if (changes) {
-                return JSON.parse(changes);
-            }
-            return { hasChanges: false };
-        }
-
-        // 標記變更（在數據修改時調用）
-        function markAsChanged(type, key) {
-            const changes = getPendingChanges();
-            changes.hasChanges = true;
-            if (!changes[type]) changes[type] = [];
-            if (!changes[type].includes(key)) {
-                changes[type].push(key);
-            }
-            changes.timestamp = Date.now();
-            localStorage.setItem('fanStandPendingChanges', JSON.stringify(changes));
-            updateSyncStatus('有待同步的變更');
-        }
-
-        // 清除待同步標記
-        function clearPendingChanges() {
-            localStorage.removeItem('fanStandPendingChanges');
-        }
-
-        // 合併雲端數據
-        async function mergeWithCloudData() {
-            const cloudSnapshot = await firebaseDB.ref('deliveryData').once('value');
-            const cloudData = cloudSnapshot.val() || { stores: {}, images: {} };
-            
-            // 獲取本地數據
-            const localStores = {};
-            for (const [key, value] of Object.entries(completedStores)) {
-                localStores[key] = value;
-            }
-            const localImages = await getAllImages();
-            
-            // 合併商店數據（對象格式）
-            const mergedStores = { ...(cloudData.stores || {}) };
-            for (const [key, localStore] of Object.entries(localStores)) {
-                if (!mergedStores[key] || localStore.time > mergedStores[key].time) {
-                    mergedStores[key] = localStore;
-                }
-            }
-            
-            // 合併圖片數據（對象格式 {storeKey_imageId: {storeKey, imageId, imageData}}）
-            const mergedImages = { ...(cloudData.images || {}) };
-            localImages.forEach(localImg => {
-                const imageKey = `${localImg.storeKey}_${localImg.imageId}`;
-                if (!mergedImages[imageKey]) {
-                    mergedImages[imageKey] = {
-                        storeKey: localImg.storeKey,
-                        imageId: localImg.imageId,
-                        imageData: localImg.imageData,
-                        time: localImg.time || Date.now()
-                    };
-                }
-            });
-            
-            return { stores: mergedStores, images: mergedImages };
-        }
-
-        // 一次性拉取雲端數據
-        async function syncFromCloudOnce() {
-            const snapshot = await firebaseDB.ref('deliveryData').once('value');
-            const data = snapshot.val();
-            if (!data) return;
-            
-            // 合併到本地（data.stores 是對象格式 {key: {time}, ...}）
-            // P0-修復：雲端數據覆蓋本地，確保下載的是最新數據
-            if (data.stores) {
-                let storeCount = 0;
-                for (const [key, store] of Object.entries(data.stores)) {
-                    if (store && store.time) {
-                        // 直接使用雲端數據（下載模式以雲端為準）
-                        completedStores[key] = { time: store.time };
-                        storeCount++;
-                    }
-                }
-                localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
-                console.log('[Sync] 下載商店數量:', storeCount);
-            }
-            
-            // 合併圖片（data.images 是對象格式 {storeKey_imageId: {storeKey, imageId, imageData}, ...}）
-            if (data.images) {
-                let imageCount = 0;
-                for (const [imageKey, img] of Object.entries(data.images)) {
-                    if (img && img.storeKey && img.imageId && img.imageData) {
-                        await saveImageToLocal(img.storeKey, img.imageId, img.imageData);
-                        // P0-3: 更新圖片緩存
-                        if (!imageCache[img.storeKey]) {
-                            imageCache[img.storeKey] = [];
-                        }
-                        // 避免重複添加
-                        if (!imageCache[img.storeKey].includes(img.imageData)) {
-                            imageCache[img.storeKey].push(img.imageData);
-                        }
-                        imageCount++;
-                    }
-                }
-                console.log('[Sync] 下載圖片數量:', imageCount);
-            }
-            
-            if (data.version) {
-                localStorage.setItem('fanStandDataVersion', data.version.toString());
-            }
-            
-            // P0-3: 重新加載圖片緩存確保一致性
-            await loadAllImageCache();
-            
-            // 重新渲染所有頁面
-            renderCurrentDay();
-            renderCompletedPage();
-            renderGalleryStoreList();
-            updateStats();
-            updateCompletedPageStats();
-            
-            showToast('下載完成，頁面已更新', 'success');
-        }
-        
-        // 渲染所有頁面（兼容性函數）
-        function renderAll() {
-            renderCurrentDay();
-            renderCompletedPage();
-            renderGalleryStoreList();
-            updateStats();
-            updateCompletedPageStats();
-        }
-
-        // 更新同步狀態顯示
-        function updateSyncStatus(status) {
-            const statusEl = document.getElementById('syncStatus');
-            if (statusEl) {
-                const lastSync = localStorage.getItem('fanStandLastSync');
-                let statusText = status;
-                
-                // 添加最後同步時間
-                if (lastSync) {
-                    const lastSyncDate = new Date(parseInt(lastSync));
-                    const timeStr = lastSyncDate.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-                    statusText += ` (上次: ${timeStr})`;
-                }
-                
-                statusEl.textContent = statusText;
-                
-                // 根據狀態設置顏色
-                if (status.includes('失敗')) {
-                    statusEl.style.color = '#ff3b30';
-                } else if (status.includes('完成') || status.includes('已同步')) {
-                    statusEl.style.color = '#34c759';
-                } else if (status.includes('中')) {
-                    statusEl.style.color = '#0071e3';
-                } else {
-                    statusEl.style.color = '#86868b';
-                }
-                
-                if (lastSync) {
-                    const date = new Date(parseInt(lastSync));
-                    statusEl.title = '上次同步: ' + date.toLocaleString();
-                }
-            }
-        }
-
-        // 從雲端同步數據
-        function syncFromCloud() {
-            if (!isFirebaseReady) return;
-            
-            firebaseDB.ref('deliveryData').on('value', async (snapshot) => {
-                try {
-                    const data = snapshot.val();
-                    if (!data) return;
-                    
-                    // 獲取雲端版本號
-                    const cloudVersion = data.version || 0;
-                    const localVersion = parseInt(localStorage.getItem('fanStandDataVersion') || '0');
-                    
-                    // 如果本地版本較新，不覆蓋本地數據
-                    if (localVersion > cloudVersion) {
-                        console.log('[Firebase] 本地版本較新，跳過雲端同步');
-                        return;
-                    }
-                    
-                    // ===== 修復2: 正確合併商店數據（以時間戳為準） =====
-                    if (data.stores) {
-                        // data.stores 是對象 {key: {time: timestamp}, ...}
-                        for (const [storeKey, storeData] of Object.entries(data.stores)) {
-                            if (storeKey && storeData && storeData.time) {
-                                const localTime = completedStores[storeKey]?.time || 0;
-                                // 只有雲端數據較新時才更新
-                                if (storeData.time > localTime) {
-                                    completedStores[storeKey] = { time: storeData.time };
-                                }
-                            }
-                        }
-                        localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
-                    }
-                    
-                    // ===== 修復2: 正確合併圖片數據 =====
-                    if (data.images) {
-                        // data.images 是對象 {storeKey_imageId: {storeKey, imageId, imageData}, ...}
-                        for (const [imageKey, imgData] of Object.entries(data.images)) {
-                            if (imgData && imgData.storeKey && imgData.imageId) {
-                                // 檢查圖片是否已存在
-                                const existingImages = await getImagesForStore(imgData.storeKey);
-                                const exists = existingImages.some(i => i.imageId === imgData.imageId);
-                                if (!exists) {
-                                    await saveImageToLocal(imgData.storeKey, imgData.imageId, imgData.imageData);
-                                }
-                            }
-                        }
-                        // 重新加載圖片緩存
-                        await loadAllImageCache();
-                    }
-                    
-                    // 更新本地版本號
-                    if (cloudVersion > localVersion) {
-                        localStorage.setItem('fanStandDataVersion', cloudVersion.toString());
-                    }
-                    
-                    console.log('[Firebase] 數據已從雲端同步');
-                    renderAll(); // 重新渲染
-                    showToast('已同步雲端更新', 'success');
-                } catch (error) {
-                    console.error('[Firebase] 接收數據失敗:', error);
-                }
-            });
-        }
-
-        // 強制上載數據到雲端（強制模式，不上傳所有本地數據）
-        async function forceUpload() {
-            const uploadBtn = document.getElementById('uploadBtn');
-            const originalText = uploadBtn ? uploadBtn.innerHTML : '⬆️ 上載數據';
-            
-            // 更新按鈕狀態為上載中
-            if (uploadBtn) {
-                uploadBtn.innerHTML = '🔄 上載中...';
-                uploadBtn.disabled = true;
-                uploadBtn.style.opacity = '0.7';
-            }
-            updateSyncStatus('正在上載數據到雲端...');
-            
-            try {
-                showToast('正在上載數據...', 'info');
-                await syncToCloudForce();
-                showToast('上載完成', 'success');
-                updateSyncStatus('上載完成');
-            } catch (error) {
-                console.error('上載失敗:', error);
-                showToast('上載失敗: ' + error.message, 'error');
-                updateSyncStatus('上載失敗');
-            } finally {
-                // 恢復按鈕狀態
-                setTimeout(() => {
-                    if (uploadBtn) {
-                        uploadBtn.innerHTML = originalText;
-                        uploadBtn.disabled = false;
-                        uploadBtn.style.opacity = '1';
-                    }
-                }, 1000);
-            }
-        }
-
-        // 強制同步所有數據到雲端（不檢查 pendingChanges）
-        async function syncToCloudForce() {
-            if (!isFirebaseReady) {
-                showToast('雲端未連接', 'error');
-                return;
-            }
-            
-            // 防止頻繁同步（最少間隔 3 秒）
-            const now = Date.now();
-            const lastSyncAttempt = parseInt(localStorage.getItem('fanStandLastSyncAttempt') || '0');
-            if (now - lastSyncAttempt < 3000) {
-                showToast('同步過於頻繁，請稍後再試', 'warning');
-                return;
-            }
-            localStorage.setItem('fanStandLastSyncAttempt', now.toString());
-            
-            updateSyncStatus('正在強制上載所有數據...');
-            
-            try {
-                // 獲取雲端當前版本
-                const cloudSnapshot = await firebaseDB.ref('deliveryData/version').once('value');
-                const cloudVersion = cloudSnapshot.val() || 0;
-                
-                // 強制合併所有本地數據（不上傳是否有 pendingChanges）
-                const mergedData = await mergeWithCloudData();
-                
-                console.log('[Firebase] 強制上載數據:', {
-                    storesCount: Object.keys(mergedData.stores).length,
-                    imagesCount: Object.keys(mergedData.images).length
-                });
-                
-                // 使用 update 而非 set，避免覆蓋其他用戶數據
-                const updates = {
-                    'deliveryData/stores': mergedData.stores,
-                    'deliveryData/images': mergedData.images,
-                    'deliveryData/lastSync': Date.now(),
-                    'deliveryData/version': cloudVersion + 1
-                };
-                
-                await firebaseDB.ref().update(updates);
-                
-                // 更新本地版本號
-                localStorage.setItem('fanStandDataVersion', (cloudVersion + 1).toString());
-                localStorage.setItem('fanStandLastSync', Date.now().toString());
-                clearPendingChanges();
-                
-                showToast('強制上載成功', 'success');
-                updateSyncStatus('上載完成');
-                console.log('[Firebase] 強制上載成功');
-            } catch (error) {
-                console.error('[Firebase] 強制上載失敗:', error);
-                showToast('上載失敗: ' + error.message, 'error');
-                updateSyncStatus('上載失敗');
-                throw error;
-            }
-        }
-
-        // 強制下載數據從雲端
-        async function forceDownload() {
-            const downloadBtn = document.getElementById('downloadBtn');
-            const originalText = downloadBtn ? downloadBtn.innerHTML : '⬇️ 下載數據';
-            
-            // 更新按鈕狀態為下載中
-            if (downloadBtn) {
-                downloadBtn.innerHTML = '🔄 下載中...';
-                downloadBtn.disabled = true;
-                downloadBtn.style.opacity = '0.7';
-            }
-            updateSyncStatus('正在從雲端下載數據...');
-            
-            try {
-                showToast('正在下載數據...', 'info');
-                await syncFromCloudOnce();
-                showToast('下載完成', 'success');
-                updateSyncStatus('下載完成');
-            } catch (error) {
-                console.error('下載失敗:', error);
-                showToast('下載失敗: ' + error.message, 'error');
-                updateSyncStatus('下載失敗');
-            } finally {
-                // 恢復按鈕狀態
-                setTimeout(() => {
-                    if (downloadBtn) {
-                        downloadBtn.innerHTML = originalText;
-                        downloadBtn.disabled = false;
-                        downloadBtn.style.opacity = '1';
-                    }
-                }, 1000);
-            }
-        }
-
-        // ===== IndexedDB 圖片存儲 =====
-        const DB_NAME = 'FanStandImages';
-        const DB_VERSION = 2; // 版本升級
-        const STORE_NAME = 'images';
-        let db = null;
-
-        function initDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                
-                request.onerror = () => {
-                    err('IndexedDB 開啟失敗', request.error);
-                    reject(request.error);
-                };
-                request.onsuccess = () => {
-                    db = request.result;
-                    log('IndexedDB 已就緒');
-                    resolve(db);
-                };
-                
-                request.onupgradeneeded = (event) => {
-                    log('IndexedDB 版本升級');
-                    const database = event.target.result;
-                    // 只在 objectStore 不存在時創建，不要刪除舊數據
-                    if (!database.objectStoreNames.contains(STORE_NAME)) {
-                        database.createObjectStore(STORE_NAME, { keyPath: ['storeKey', 'imageId'] });
-                    }
-                };
-            });
-        }
-
-        // 生成唯一 ID
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-        }
-
-        // 圖片壓縮配置
-        const MAX_IMAGE_WIDTH = 1200;
-        const MAX_IMAGE_HEIGHT = 1200;
-        const IMAGE_QUALITY = 0.7; // JPEG 質量
-        const MAX_IMAGES_PER_STORE = 2;
-
-        // 壓縮圖片
-        async function compressImage(base64Data) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = function() {
-                    let width = img.width;
-                    let height = img.height;
-                    
-                    // 計算縮放比例
-                    if (width > MAX_IMAGE_WIDTH || height > MAX_IMAGE_HEIGHT) {
-                        const ratio = Math.min(MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height);
-                        width *= ratio;
-                        height *= ratio;
-                    }
-                    
-                    // 創建 Canvas
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    
-                    // 繪製圖片
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // 輸出壓縮後的 Base64
-                    const compressed = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
-                    
-                    log('圖片壓縮:', base64Data.length, '->', compressed.length, 
-                        '(' + Math.round((1 - compressed.length/base64Data.length) * 100) + '% 減少)');
-                    
-                    resolve(compressed);
-                };
-                img.onerror = reject;
-                img.src = base64Data;
-            });
-        }
-
-        // 檢查圖片數量限制
-        async function checkImageLimit(storeKey) {
-            const images = await getImagesForStore(storeKey);
-            return images.length < MAX_IMAGES_PER_STORE;
-        }
-
-        // 獲取某店舖的圖片數量
-        async function getImagesForStore(storeKey) {
-            if (!db) await initDB();
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readonly');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.getAll();
-                request.onsuccess = () => {
-                    const images = request.result.filter(item => item.storeKey === storeKey);
-                    resolve(images);
-                };
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async function saveImage(storeKey, imageId, imageData) {
-            log('保存圖片:', storeKey, imageId);
-            
-            // 檢查圖片數量限制
-            const canAdd = await checkImageLimit(storeKey);
-            if (!canAdd) {
-                throw new Error('每個店舖最多只能保存 ' + MAX_IMAGES_PER_STORE + ' 張圖片');
-            }
-            
-            // 壓縮圖片
-            let compressedData = imageData;
-            try {
-                compressedData = await compressImage(imageData);
+                console.log('[Firebase] 初始化成功');
             } catch (e) {
-                console.warn('圖片壓縮失敗，使用原圖:', e);
+                console.error('[Firebase] 初始化失敗:', e);
+                isFirebaseReady = false;
             }
-            
-            // 等待 IndexedDB 準備好
-            if (!db) {
-                log('IndexedDB 未就緒，等待...');
-                await initDB();
-                log('IndexedDB 已就緒');
-            }
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.put({ storeKey, imageId, imageData: compressedData, time: Date.now() });
-                request.onsuccess = () => {
-                    log('圖片保存成功:', imageId);
-                    markAsChanged('images', storeKey);
-                    resolve(imageId);
-                };
-                request.onerror = () => {
-                    err('圖片保存失敗', request.error);
-                    reject(request.error);
-                };
-            });
-        }
-        
-        async function deleteImageFromDB(storeKey, imageData) {
-            // 等待 IndexedDB 準備好
-            if (!db) {
-                await initDB();
-            }
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.getAll();
-                request.onsuccess = () => {
-                    const results = request.result.filter(item => 
-                        item.storeKey === storeKey && item.imageData === imageData
-                    );
-                    if (results.length > 0) {
-                        const deleteReq = store.delete([storeKey, results[0].imageId]);
-                        deleteReq.onsuccess = () => {
-                            log('圖片刪除成功');
-                            resolve();
-                        };
-                        deleteReq.onerror = () => reject(deleteReq.error);
-                    } else {
-                        err('找不到要刪除的圖片');
-                        reject(new Error('Image not found'));
-                    }
-                };
-                request.onerror = () => reject(request.error);
-            });
         }
 
-        async function getAllImages() {
-            // 等待 IndexedDB 準備好
-            if (!db) {
-                await initDB();
-            }
+        // ===== 日期選擇器 =====
+        function initDaySelector() {
+            const selector = document.getElementById('daySelector');
+            const days = Object.keys(storeData);
+            selector.innerHTML = days.map((day, index) => 
+                `<button class="day-btn ${index === 0 ? 'active' : ''}" onclick="selectDay('${day}', this)">${day}</button>`
+            ).join('');
+        }
+
+        function selectDay(day, btn) {
+            document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderStoreList();
+        }
+
+        // ===== 店舖列表 =====
+        function renderStoreList() {
+            const activeDay = document.querySelector('.day-btn.active')?.textContent || Object.keys(storeData)[0];
+            const stores = storeData[activeDay] || [];
+            const listEl = document.getElementById('storeList');
             
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readonly');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.getAll();
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        // 獲取所有商店完成狀態
-        function getAllStores() {
-            const stores = [];
-            for (const [key, value] of Object.entries(completedStores)) {
-                stores.push({
-                    key: key,
-                    time: value.time
-                });
-            }
-            return stores;
-        }
-
-        // 保存商店狀態到本地
-        async function saveStoreToLocal(storeData) {
-            if (storeData.key && storeData.time) {
-                completedStores[storeData.key] = { time: storeData.time };
-            }
-            localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
-        }
-
-        // 保存圖片到本地（直接保存，不壓縮）
-        async function saveImageToLocal(storeKey, imageId, imageData) {
-            log('直接保存圖片到本地:', storeKey, imageId);
-            
-            // 等待 IndexedDB 準備好
-            if (!db) {
-                await initDB();
-            }
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                const request = store.put({ 
-                    storeKey, 
-                    imageId, 
-                    imageData: imageData,  // 直接使用傳入的數據，不壓縮
-                    time: Date.now() 
-                });
-                request.onsuccess = () => {
-                    log('圖片直接保存成功:', imageId);
-                    resolve(imageId);
-                };
-                request.onerror = () => {
-                    err('圖片直接保存失敗', request.error);
-                    reject(request.error);
-                };
-            });
-        }
-
-        // ===== 人員分配 =====
-        const personnel = {
-            raymond: [2130, 2410, 6650, 6530, 9120, 9130, 9150, 9170],
-            dj: []
-        };
-
-        // ===== 原始數據 =====
-        const originalData = {
-            wed: [
-                { seq: 1, id: 4090, addr: '九龍美孚新邨萬事達廣場地下 N58, N65-N68 號舖' },
-                { seq: 2, id: 4760, addr: '九龍旺角山東街 47-51 號中僑商業大廈 2-3 號舖' },
-                { seq: 3, id: 4770, addr: '九龍西洋菜街南街13-19號好望角大廈地下4號舖及地庫B2舖' },
-                { seq: 4, id: 4780, addr: '九龍旺角彌敦道 664 號惠豐中心地下 4-6 號舖' },
-                { seq: 5, id: 4910, addr: '九龍奧海城 2 期高層地下 UG05B 及 UG06A 舖' },
-                { seq: 6, id: 4660, addr: '九龍彌敦道 143-161 號栢麗購物大道B 區及 C 區地下 G49-G50 號舖及 1 樓21-2' },
-                { seq: 7, id: 4830, addr: '九龍深水埗欽州街西九龍中心 5 樓 501A 號舖' },
-                { seq: 8, id: 4810, addr: '九龍深水埗深旺道28號 V Walk 2樓 L2-53 & L2-55號舖' },
-                { seq: 9, id: 4970, addr: '九龍深水埗福華街 146/152號黃金電腦商場50號舖' },
-                { seq: 10, id: 4860, addr: '九龍黃埔花園第十二期家居庭地庫B3號舖' },
-                { seq: 11, id: 4750, addr: '九龍旺角 Moko 4 樓 420 號舖' },
-                { seq: 12, id: 4920, addr: '九龍柯士甸道西一號圓方一樓1050B號舖' },
-                { seq: 13, id: 4130, addr: '九龍尖沙咀海洋中心 3 樓333A, 333B, 335-7 號舖' },
-                { seq: 14, id: 4690, addr: '九龍又一城 MTR 層 01 號舖' }
-            ],
-            thu: [
-                { seq: 1, id: 2430, addr: '香港德輔道西 396 號華明中心地下後座' },
-                { seq: 2, id: 2580, addr: '香港莊士敦道141-147號鴻江大廈地庫及地下C號舖' },
-                { seq: 3, id: 2010, addr: '香港中環德輔道中 107 -111 號余崇本大廈地下' },
-                { seq: 4, id: 2030, addr: '香港中環皇后大道中2號長江中心CKC18地庫B2' },
-                { seq: 5, id: 2050, addr: '香港中環皇后大道中 33 號萬邦行低層地下 1-2 號舖' },
-                { seq: 6, id: 2200, addr: '香港太古城中心南商場 4 樓418 號舖' },
-                { seq: 7, id: 2510, addr: '香港北角英皇道 560 號健威坊L6-7 及 L28-30 號舖及地庫' },
-                { seq: 8, id: 2370, addr: '香港英皇道 260 號怡安中心地下(部份) 及 1 樓' },
-                { seq: 9, id: 2680, addr: '香港柴灣新翠商場 306-7 及 337 號舖' },
-                { seq: 10, id: 2390, addr: '香港香港仔南寧街 7-11 號香港仔中心 1 樓 2 號 及 47號舖' },
-                { seq: 11, id: 6330, addr: '新界大圍車公廟路18號圍方5樓524號舖' },
-                { seq: 12, id: 6130, addr: '沙田新城市廣場6樓635-636舖' },
-                { seq: 13, id: 6200, addr: '新界葵芳新都會廣場5樓543-545號舖' },
-                { seq: 14, id: 6250, addr: '新界荃灣廣場 4 樓 450-453號舖' },
-                { seq: 15, id: 6260, addr: '新界荃灣眾安街 57 -63 號周氏商業中心地下' }
-            ],
-            fri: [
-                { seq: 1, id: 4530, addr: '九龍慈雲山毓華街 23 號慈雲山中心 4 樓411-412 號舖' },
-                { seq: 2, id: 4840, addr: '九龍鑽石山荷李活廣場 2 樓 201 號舖' },
-                { seq: 3, id: 4250, addr: '九龍黃大仙龍翔道136號黃大仙中心北館地下G11號鋪' },
-                { seq: 4, id: 4380, addr: '九龍德福廣場第一期 G45-51號舖' },
-                { seq: 5, id: 4360, addr: '九龍灣牛頭角道 77號淘大商場2樓S54-56號舖' },
-                { seq: 6, id: 4180, addr: '九龍觀塘創紀之城第 5 期 APM5 樓 L5-X 號舖' },
-                { seq: 7, id: 4150, addr: '九龍油塘大本型1樓126號舖' },
-                { seq: 8, id: 4700, addr: '新界將軍澳唐德街9號將軍澳中心地下G41號舖' },
-                { seq: 9, id: 4710, addr: '新界將軍澳新都城二期 UG011-013號舖' },
-                { seq: 10, id: 4720, addr: '新界將軍澳東港城 2 樓 259 號舖' },
-                { seq: 11, id: 4730, addr: '香港新界西貢將軍澳康城路1號The LOHAS 康城3樓325至326號舖' },
-                { seq: 12, id: 4890, addr: '新界將軍澳 PopCorn 2, F70 號舖' },
-                { seq: 13, id: 8740, addr: '九龍啟德協調道2號 Airside B1樓 B111-112號舖' }
-            ],
-            mon: [
-                { seq: 1, id: 6160, addr: '新界天水圍天恩路 12-18 號嘉湖一期二樓 221-222 號舖' },
-                { seq: 2, id: 6280, addr: '新界屯門鄉事會路83號 V City 地鐵樓層 L2, M-45 及 46號舖' },
-                { seq: 3, id: 6610, addr: '新界屯門屯盛街 1 號屯門市廣場 1 期地下G002-G007 號舖' },
-                { seq: 4, id: 6360, addr: '新界元朗大棠路光華廣場 1 樓' },
-                { seq: 5, id: 6700, addr: '元朗青山公路-元朗段 249-251 號元朗廣場 146-149 及 161 號舖' },
-                { seq: 6, id: 6800, addr: '新界元朗朗日路8號形點II3樓A328-A329號舖' },
-                { seq: 7, id: 6380, addr: '新界上水廣場 4 樓 407號舖' },
-                { seq: 8, id: 6560, addr: '新界粉嶺名都商場 2 樓 28C 舖' },
-                { seq: 9, id: 6370, addr: '大埔超級城 C區2樓564-566 & 570號' },
-                { seq: 10, id: 6720, addr: '新界馬鞍山廣場 3 樓 364B 號舖' }
-            ],
-            raymond: [
-                { seq: 1, id: 2130, addr: '香港銅鑼灣時代廣場8樓818-821號舖及9樓914-915號舖' },
-                { seq: 2, id: 2410, addr: '香港銅鑼灣怡和街 9-15 號V 銅鑼灣地下 3 號舖' },
-                { seq: 3, id: 6650, addr: '新界青衣城 3 樓 305-307A 號舖' },
-                { seq: 4, id: 6530, addr: '香港大嶼山東涌達東路18-20號東薈城5樓502B號舖' },
-                { seq: 5, id: 9120, addr: '澳門氹仔花城 40 地段地下商場部份舖位' },
-                { seq: 6, id: 9130, addr: '澳門議事亭前地 11 號信德堡地庫' },
-                { seq: 7, id: 9150, addr: '澳門水坑尾街 62-92 號地下 A, B, C, D 舖及 1 樓' },
-                { seq: 8, id: 9170, addr: '澳門威尼斯人度假村酒店大運河購物中心2023, 2023a & 2023b 號舖' }
-            ]
-        };
-
-        // 天數標籤
-        const dayLabels = {
-            wed: '星期三',
-            thu: '星期四',
-            fri: '星期五',
-            mon: '星期一',
-            raymond: 'Raymond'
-        };
-
-        // 總店數
-        const totalStores = 60;
-
-        // 從 localStorage 讀取完成狀態和時間
-        let completedStores = JSON.parse(localStorage.getItem('fanStandCompleted') || '{}');
-
-        // 圖片緩存
-        let imageCache = {};
-
-        // 當前操作的店舖key
-        let currentImgKey = null;
-
-        // Lightbox 狀態
-        let lightboxImages = [];
-        let lightboxIndex = 0;
-        let lightboxStoreKey = null; // 用於刪除
-        let zoomLevel = 1;
-        let translateX = 0;
-        let translateY = 0;
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchStartTransX = 0;
-        let touchStartTransY = 0;
-
-        // ===== 初始化 =====
-        async function init() {
-            log('開始初始化...');
-            try {
-                log('步驟1: 初始化 IndexedDB...');
-                await initDB();
-                log('步驟2: 初始化 Firebase...');
-                initFirebase();
-                log('步驟3: 加載圖片緩存...');
-                await loadAllImageCache();
-                log('步驟3: 渲染店舖列表...');
-                renderGalleryStoreList();
+            listEl.innerHTML = stores.map(store => {
+                const key = `${activeDay}-${store.id}`;
+                const isCompleted = completedStores[key];
+                const staff = personnel.raymond.includes(store.id) ? 'raymond' : 'dj';
                 
-                log('步驟4: 顯示送貨列表...');
-                // 確保列表顯示
-                const listWed = document.getElementById('list-wed');
-                listWed.classList.add('active');
-                log('list-wed 元素:', listWed);
-                
-                renderCurrentDay();
-                updateStats();
-                
-                log('初始化完成！送貨列表已顯示');
-            } catch (e) {
-                err('初始化失敗:', e);
-                console.error('初始化詳細錯誤:', e);
-            }
+                return `
+                    <div class="store-card">
+                        <div class="store-info">
+                            <div class="store-id">${store.id}</div>
+                            <div class="store-address">${store.address}</div>
+                            <span class="staff-badge ${staff}">${staff === 'raymond' ? 'Raymond' : 'DJ'}</span>
+                        </div>
+                        <button class="complete-btn ${isCompleted ? 'completed' : ''}" onclick="toggleComplete('${store.id}', '${activeDay}')">
+                            ${isCompleted ? '✓' : ''}
+                        </button>
+                    </div>
+                `;
+            }).join('');
         }
 
-        async function loadAllImageCache() {
-            try {
-                const allImages = await getAllImages();
-                log('加載圖片緩存，共', allImages.length, '張');
-                allImages.forEach(item => {
-                    const key = item.storeKey;
-                    if (!imageCache[key]) {
-                        imageCache[key] = [];
-                    }
-                    imageCache[key].push(item.imageData);
-                });
-                log('圖片緩存加載完成:', imageCache);
-            } catch (e) {
-                err('圖片緩存加載失敗:', e);
-            }
-        }
-
-        // ===== 獲取人員標籤 =====
-        function getStaffBadge(storeId) {
-            if (personnel.raymond.includes(storeId)) {
-                return '<span class="staff-badge raymond">Raymond</span>';
-            } else {
-                return '<span class="staff-badge dj">DJ</span>';
-            }
-        }
-
-        // ===== 獲取天數標籤 =====
-        function getDayBadge(day) {
-            return `<span class="day-badge">${dayLabels[day] || day}</span>`;
-        }
-
-        // ===== 格式化時間 =====
-        function formatTime(timestamp) {
-            const date = new Date(timestamp);
-            const month = date.getMonth() + 1;
-            const day = date.getDate();
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            return `${month}/${day} ${hours}:${minutes}`;
-        }
-
-        // ===== 切換完成狀態 =====
-        async function toggleComplete(storeId, day) {
+        // ===== 完成狀態切換 =====
+        function toggleComplete(storeId, day) {
             const key = `${day}-${storeId}`;
             if (completedStores[key]) {
                 delete completedStores[key];
             } else {
-                completedStores[key] = {
-                    time: Date.now()
-                };
+                completedStores[key] = { time: Date.now() };
             }
-            localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
-            markAsChanged('stores', key);
-            renderCurrentDay();
+            saveCompletedStores();
+            renderStoreList();
             updateStats();
-            renderCompletedPage();
-            updateCompletedPageStats();
-            renderGalleryStoreList();
         }
 
-        // ===== 更新統計 =====
+        // ===== 數據持久化 =====
+        function loadCompletedStores() {
+            const data = localStorage.getItem('completedStores');
+            if (data) {
+                completedStores = JSON.parse(data);
+            }
+        }
+
+        function saveCompletedStores() {
+            localStorage.setItem('completedStores', JSON.stringify(completedStores));
+        }
+
+        // ===== 統計更新 =====
         function updateStats() {
-            const currentDay = document.querySelector('.day-btn.active').dataset.day;
-            const stores = originalData[currentDay] || [];
-
-            // 當日統計
-            const dayCompleted = stores.filter(s => completedStores[`${currentDay}-${s.id}`]).length;
-            document.getElementById('day-completed').textContent = dayCompleted;
-            document.getElementById('day-pending').textContent = stores.length - dayCompleted;
-
-            // 更新按鈕數量
-            ['wed', 'thu', 'fri', 'mon', 'raymond'].forEach(day => {
-                const dayStores = originalData[day] || [];
-                const count = dayStores.filter(s => completedStores[`${day}-${s.id}`]).length;
-                document.getElementById(`count-${day}`).textContent = `${count}/${dayStores.length}`;
-            });
-
-            // 總統計
-            const { totalCompleted, totalPending } = getStats();
-            document.getElementById('total-completed').textContent = totalCompleted;
-            document.getElementById('total-pending').textContent = totalPending;
+            const total = Object.values(storeData).flat().length;
+            const completed = Object.keys(completedStores).length;
+            const photos = Object.keys(imageCache).length;
+            
+            document.getElementById('statCompleted').textContent = completed;
+            document.getElementById('statPending').textContent = total - completed;
+            document.getElementById('statPhotos').textContent = photos;
         }
 
-        // ===== 渲染店舖卡片 =====
-        function renderStoreCard(s, day) {
-            const key = `${day}-${s.id}`;
-            const isCompleted = completedStores[key];
-            const images = imageCache[key] || [];
-            const hasImages = images.length > 0;
-
-            // 圖片縮略圖（查詢頁只顯示，靠右對齊店號）
-            const imgThumbs = hasImages ? images.map((img, idx) => 
-                `<img class="store-card-thumb" src="${img}" onclick="openLightbox('${key}', ${idx})" alt="圖片">`
-            ).join('') : '';
-
-            return `
-                <div class="store-card ${isCompleted ? 'completed' : ''}" data-id="${s.id}">
-                    <div class="checkbox-wrapper">
-                        <div class="checkbox ${isCompleted ? 'checked' : ''}" onclick="toggleComplete(${s.id}, '${day}')"></div>
-                    </div>
-                    <div class="store-content">
-                        <div class="store-header">
-                            <div class="store-info">
-                                <div class="store-id">${s.id}</div>
-                                <div class="store-meta">
-                                    <span class="store-seq">第 ${s.seq} 站</span>
-                                    ${getDayBadge(day)}
-                                    ${getStaffBadge(s.id)}
-                                </div>
-                            </div>
-                        </div>
-                        ${hasImages ? `<div class="store-card-imgs">${imgThumbs}</div>` : ''}
-                        <div class="store-address">${s.addr}</div>
-                    </div>
-                </div>
-            `;
+        // ===== 頁面切換 =====
+        function showPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(page + 'Page').classList.add('active');
+            event.target.classList.add('active');
+            
+            if (page === 'completed') renderCompletedList();
+            if (page === 'gallery') renderGallery();
         }
 
-        // ===== 渲染當天列表 =====
-        function renderCurrentDay() {
-            const currentDay = document.querySelector('.day-btn.active').dataset.day;
-            const stores = originalData[currentDay] || [];
-            const listEl = document.getElementById(`list-${currentDay}`);
-
-            if (stores.length === 0) {
-                listEl.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">📦</div>
-                        <p>當日無送貨安排</p>
-                    </div>
-                `;
-            } else {
-                listEl.innerHTML = stores.map(s => renderStoreCard(s, currentDay)).join('');
-            }
-
-            updateStats();
-        }
-
-        // ===== 共用函數：獲取已完成店舖列表 =====
-        function getCompletedStores() {
-            const completed = [];
-            for (const [day, stores] of Object.entries(originalData)) {
-                for (const s of stores) {
-                    const key = `${day}-${s.id}`;
-                    if (completedStores[key]) {
-                        completed.push({
-                            ...s,
-                            day,
-                            key,
-                            time: completedStores[key].time,
-                            staff: personnel.raymond.includes(s.id) ? 'raymond' : 'dj'
-                        });
-                    }
-                }
-            }
-            return completed.sort((a, b) => a.time - b.time);
-        }
-
-        // ===== 共用函數：獲取統計數據 =====
-        function getStats() {
-            let totalCompleted = 0, totalPhoto = 0;
-            for (const [day, stores] of Object.entries(originalData)) {
-                for (const s of stores) {
-                    const key = `${day}-${s.id}`;
-                    if (completedStores[key]) {
-                        totalCompleted++;
-                        if (imageCache[key]?.length > 0) totalPhoto++;
-                    }
-                }
-            }
-            return { totalCompleted, totalPending: totalStores - totalCompleted, totalPhoto };
-        }
-
-        // ===== 渲染已完成頁面 =====
-        async function renderCompletedPage() {
-            const completed = getCompletedStores();
-            const { totalPhoto } = getStats();
-
+        // ===== 已完成列表 =====
+        function renderCompletedList() {
             const listEl = document.getElementById('completedList');
-
-            if (completed.length === 0) {
-                listEl.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">📦</div>
-                        <p>尚無已完成項目</p>
+            const items = Object.entries(completedStores).map(([key, data]) => {
+                const [day, id] = key.split('-');
+                const time = new Date(data.time).toLocaleString('zh-TW');
+                return `
+                    <div class="completed-item">
+                        <div class="completed-info">
+                            <div class="completed-time">${time}</div>
+                            <div class="completed-store-id">${id}</div>
+                        </div>
                     </div>
                 `;
-                document.getElementById('completed-summary').textContent = '按打剔先後排序';
-            } else {
-                document.getElementById('completed-summary').textContent = `共 ${completed.length} 項`;
-                document.getElementById('page-photo-count').textContent = totalPhoto;
-
-                // 生成圖片HTML
-                const renderImages = (key, images) => {
-                    const imgHtml = images.map((img, idx) => 
-                        `<img class="img-thumb" src="${img}" onclick="openLightbox('${key}', ${idx})" alt="圖片">`
-                    ).join('');
-                    const addBtn = images.length < 2 ? `<div class="img-add-btn" onclick="openImgModal('${key}')">+</div>` : '';
-                    return imgHtml + addBtn;
-                };
-
-                // 表格樣式
-                const rows = completed.map(s => {
-                    const images = imageCache[s.key] || [];
-                    return `
-                        <div class="completed-table-row" data-key="${s.key}">
-                            <div class="row-time" data-key="${s.key}" data-time="${s.time}">${formatTime(s.time)}</div>
-                            <div class="row-store">${s.id}</div>
-                            <div class="row-img">${renderImages(s.key, images)}</div>
-                        </div>
-                    `;
-                }).join('');
-
-                listEl.innerHTML = `
-                    <div class="completed-list-table">
-                        <div class="completed-table-header">
-                            <div class="col-time">完成時間</div>
-                            <div class="col-store">店號</div>
-                            <div class="col-img">圖片</div>
-                        </div>
-                        ${rows}
-                    </div>
-                `;
-                setupTimeEditListeners();
-            }
+            }).join('');
+            
+            listEl.innerHTML = items || '<div style="text-align: center; padding: 40px; color: #86868b;">尚無已完成項目</div>';
         }
 
-        // ===== 更新已完成頁面統計 =====
-        function updateCompletedPageStats() {
-            const { totalCompleted, totalPending } = getStats();
-            document.getElementById('page-completed-count').textContent = totalCompleted;
-            document.getElementById('page-pending-count').textContent = totalPending;
+        // ===== 圖片庫 =====
+        function renderGallery() {
+            const gridEl = document.getElementById('galleryGrid');
+            gridEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #86868b;">圖片功能開發中</div>';
         }
 
-        // ===== 圖片模態框 =====
-        function openImgModal(key) {
-            log('打開圖片模態框:', key);
-            currentImgKey = key;
-            log('currentImgKey 已設置為:', currentImgKey);
-            const storeId = key.split('-')[1];
-            document.getElementById('imgModalTitle').textContent = `為 ${storeId} 添加圖片`;
-            document.getElementById('imgModal').classList.add('active');
-        }
-
-        function closeImgModal() {
-            log('關閉圖片模態框');
-            document.getElementById('imgModal').classList.remove('active');
-            currentImgKey = null;
-        }
-
-        function takePhoto() {
-            log('點擊拍照按鈕');
-            // 只關閉模態框，不清除 currentImgKey
-            document.getElementById('imgModal').classList.remove('active');
-            setTimeout(() => {
-                log('觸發 fileInput click');
-                document.getElementById('fileInput').click();
-            }, 100);
-        }
-
-        function chooseFromGallery() {
-            log('點擊從相冊選擇');
-            // 只關閉模態框，不清除 currentImgKey
-            document.getElementById('imgModal').classList.remove('active');
-            setTimeout(() => {
-                log('觸發 galleryInput click');
-                document.getElementById('galleryInput').click();
-            }, 100);
-        }
-
-        // ===== 處理文件選擇 =====
-        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-        document.getElementById('galleryInput').addEventListener('change', handleFileSelect);
-        
-        // 預覽相關
-        let pendingImageData = null;
-        let previewZoomLevel = 1;
-        let previewTouchStartDistance = 0;
-        let previewTouchStartZoom = 1;
-
-        async function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (!file) {
-                log('沒有選擇文件');
+        // ===== 雲端同步 =====
+        async function forceUpload() {
+            if (!isFirebaseReady) {
+                showToast('雲端未連接', 'error');
                 return;
             }
             
-            log('選擇了文件:', file.name, file.size, 'currentImgKey:', currentImgKey);
-            
-            if (!currentImgKey) {
-                err('currentImgKey 為空，無法保存');
-                alert('錯誤：請重試');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const imageData = event.target.result;
-                log('圖片讀取完成，顯示預覽...');
-                
-                // 顯示預覽彈窗
-                pendingImageData = imageData;
-                previewZoomLevel = 1;
-                document.getElementById('previewModalImg').src = imageData;
-                applyPreviewZoom();
-                initPreviewTouchListeners();
-                document.getElementById('previewModal').classList.add('active');
-            };
-            reader.onerror = () => {
-                err('圖片讀取失敗');
-                alert('圖片讀取失敗');
-            };
-            reader.readAsDataURL(file);
-            
-            // 清除 input 以便下次選擇同一張圖
-            e.target.value = '';
-        }
-        
-        // ===== 預覽確認 =====
-        async function confirmPreview() {
-            log('confirmPreview 調用, currentImgKey:', currentImgKey, 'pendingImageData:', pendingImageData ? '有' : '無');
-            
-            if (!pendingImageData) {
-                err('沒有待保存的圖片');
-                alert('錯誤：沒有圖片');
-                return;
-            }
-            
-            if (!currentImgKey) {
-                err('currentImgKey 為空');
-                alert('錯誤：無法確定店舖，請重試');
-                return;
-            }
-            
-            log('確認保存圖片...');
+            const btn = document.getElementById('uploadBtn');
+            btn.textContent = '🔄 上載中...';
+            btn.disabled = true;
             
             try {
-                const imageId = await saveImage(currentImgKey, pendingImageData);
-                
-                if (!imageCache[currentImgKey]) {
-                    imageCache[currentImgKey] = [];
-                }
-                imageCache[currentImgKey].push(pendingImageData);
-                
-                log('緩存更新完成，刷新頁面');
-                renderCurrentDay(); // 刷新送貨列表
-                renderCompletedPage();
-                renderGalleryStoreList();
-                
-                // 如果在圖片庫頁面，也刷新
-                if (document.getElementById('page-gallery').classList.contains('active')) {
-                    selectGalleryStore(currentImgKey);
-                }
-                
-                closePreview();
-                alert('圖片保存成功！');
-                
-                // 保存成功後清除
-                currentImgKey = null;
-                pendingImageData = null;
-                
-                // ===== 修復1: 保存圖片後立即同步到雲端 =====
-                log('圖片保存成功，觸發雲端同步...');
-                setTimeout(() => {
-                    syncToCloud().catch(e => console.error('同步失敗:', e));
-                }, 500);
-            } catch (err) {
-                console.error('保存失敗:', err);
-                alert('圖片保存失敗，請稍後再試');
+                await firebaseDB.ref('deliveryData').set({
+                    stores: completedStores,
+                    timestamp: Date.now()
+                });
+                showToast('上載成功', 'success');
+                document.getElementById('syncStatus').textContent = '上載完成 ' + new Date().toLocaleTimeString();
+            } catch (e) {
+                console.error('上載失敗:', e);
+                showToast('上載失敗', 'error');
+            } finally {
+                btn.textContent = '⬆️ 上載數據';
+                btn.disabled = false;
             }
         }
-        
-        function cancelPreview() {
-            log('取消預覽');
-            closePreview();
-            pendingImageData = null;
-        }
-        
-        function closePreview() {
-            document.getElementById('previewModal').classList.remove('active');
-            removePreviewTouchListeners();
-            // 重置縮放和平移
-            previewZoomLevel = 1;
-            previewTranslateX = 0;
-            previewTranslateY = 0;
-        }
-        
-        // 預覽縮放 + 平移
-        let previewTranslateX = 0;
-        let previewTranslateY = 0;
-        let previewTouchStartX = 0;
-        let previewTouchStartY = 0;
-        let previewTouchStartTransX = 0;
-        let previewTouchStartTransY = 0;
-        
-        function applyPreviewZoom() {
-            const img = document.getElementById('previewModalImg');
-            img.style.transform = `scale(${previewZoomLevel}) translate(${previewTranslateX}px, ${previewTranslateY}px)`;
-        }
-        
-        function initPreviewTouchListeners() {
-            const img = document.getElementById('previewModalImg');
-            img.addEventListener('touchstart', handlePreviewTouchStart, { passive: false });
-            img.addEventListener('touchmove', handlePreviewTouchMove, { passive: false });
-            img.addEventListener('touchend', handlePreviewTouchEnd);
-            // 雙擊放大
-            img.addEventListener('dblclick', () => {
-                previewZoomLevel = previewZoomLevel > 1 ? 1 : 2;
-                // 縮回原大小時重置平移
-                if (previewZoomLevel === 1) {
-                    previewTranslateX = 0;
-                    previewTranslateY = 0;
-                }
-                applyPreviewZoom();
-            });
-        }
-        
-        function removePreviewTouchListeners() {
-            const img = document.getElementById('previewModalImg');
-            img.removeEventListener('touchstart', handlePreviewTouchStart);
-            img.removeEventListener('touchmove', handlePreviewTouchMove);
-            img.removeEventListener('touchend', handlePreviewTouchEnd);
-        }
-        
-        function handlePreviewTouchStart(e) {
-            if (e.touches.length === 2) {
-                e.preventDefault();
-                previewTouchStartDistance = getTouchDistance(e.touches);
-                previewTouchStartZoom = previewZoomLevel;
-            } else if (e.touches.length === 1 && previewZoomLevel > 1) {
-                // 單指平移
-                e.preventDefault();
-                previewTouchStartX = e.touches[0].clientX;
-                previewTouchStartY = e.touches[0].clientY;
-                previewTouchStartTransX = previewTranslateX;
-                previewTouchStartTransY = previewTranslateY;
-            }
-        }
-        
-        function handlePreviewTouchMove(e) {
-            if (e.touches.length === 2) {
-                e.preventDefault();
-                const currentDistance = getTouchDistance(e.touches);
-                const scale = currentDistance / previewTouchStartDistance;
-                previewZoomLevel = Math.max(1, Math.min(4, previewTouchStartZoom * scale));
-                // 縮放時限制平移範圍
-                constrainPreviewPan();
-                applyPreviewZoom();
-            } else if (e.touches.length === 1 && previewZoomLevel > 1) {
-                // 單指平移（降低敏感度）
-                e.preventDefault();
-                const deltaX = e.touches[0].clientX - previewTouchStartX;
-                const deltaY = e.touches[0].clientY - previewTouchStartY;
-                previewTranslateX = previewTouchStartTransX + deltaX * 0.5;
-                previewTranslateY = previewTouchStartTransY + deltaY * 0.5;
-                constrainPreviewPan();
-                applyPreviewZoom();
-            }
-        }
-        
-        function handlePreviewTouchEnd(e) {
-            if (e.touches.length < 2) {
-                previewTouchStartDistance = 0;
-            }
-        }
-        
-        // 限制平移範圍
-        function constrainPreviewPan() {
-            if (previewZoomLevel <= 1) {
-                previewTranslateX = 0;
-                previewTranslateY = 0;
+
+        async function forceDownload() {
+            if (!isFirebaseReady) {
+                showToast('雲端未連接', 'error');
                 return;
             }
             
-            const screenW = window.innerWidth;
-            const screenH = window.innerHeight;
-            const maxOffsetX = screenW * 0.4 * (previewZoomLevel - 1);
-            const maxOffsetY = screenH * 0.4 * (previewZoomLevel - 1);
-            
-            previewTranslateX = Math.max(-maxOffsetX, Math.min(maxOffsetX, previewTranslateX));
-            previewTranslateY = Math.max(-maxOffsetY, Math.min(maxOffsetY, previewTranslateY));
-        }
-
-        // ===== Lightbox =====
-        function openLightbox(key, index) {
-            lightboxImages = imageCache[key] || [];
-            if (lightboxImages.length === 0) return;
-            
-            lightboxStoreKey = key;
-            lightboxIndex = index;
-            resetZoom();
-            showLightboxImage();
-            document.getElementById('lightbox').classList.add('active');
-            document.body.style.overflow = 'hidden';
-            
-            // 添加觸控監聽
-            initTouchListeners();
-        }
-
-        function showLightboxImage() {
-            document.getElementById('lightboxImg').src = lightboxImages[lightboxIndex];
-            document.getElementById('lightboxCounter').textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
-            
-            document.getElementById('lightboxPrev').style.display = lightboxImages.length > 1 ? 'flex' : 'none';
-            document.getElementById('lightboxNext').style.display = lightboxImages.length > 1 ? 'flex' : 'none';
-        }
-
-        function closeLightbox() {
-            document.getElementById('lightbox').classList.remove('active');
-            document.body.style.overflow = '';
-            resetZoom();
-            // 移除觸控監聽
-            removeTouchListeners();
-        }
-
-        function lightboxNav(direction) {
-            lightboxIndex = (lightboxIndex + direction + lightboxImages.length) % lightboxImages.length;
-            resetZoom();
-            showLightboxImage();
-        }
-        
-        // ===== 放大/縮小 =====
-        function toggleZoom() {
-            if (zoomLevel === 1) {
-                zoomLevel = 2;
-            } else {
-                zoomLevel = 1;
-                translateX = 0;
-                translateY = 0;
-            }
-            applyZoom();
-        }
-        
-        function zoomIn() {
-            zoomLevel = Math.min(zoomLevel + 0.5, 4);
-            applyZoom();
-        }
-        
-        function zoomOut() {
-            zoomLevel = Math.max(zoomLevel - 0.5, 1);
-            if (zoomLevel === 1) {
-                translateX = 0;
-                translateY = 0;
-            }
-            applyZoom();
-        }
-        
-        function resetZoom() {
-            zoomLevel = 1;
-            translateX = 0;
-            translateY = 0;
-            applyZoom();
-        }
-        
-        function applyZoom() {
-            const img = document.getElementById('lightboxImg');
-            img.style.transform = `scale(${zoomLevel}) translate(${translateX}px, ${translateY}px)`;
-            img.classList.toggle('zoomed', zoomLevel > 1);
-        }
-        
-        // ===== 觸控縮放（Pinch-to-Zoom）=====
-        let touchStartDistance = 0;
-        let touchStartZoom = 1;
-        let isPanning = false;
-        
-        function initTouchListeners() {
-            const img = document.getElementById('lightboxImg');
-            
-            // 雙擊放大/縮小
-            img.addEventListener('dblclick', onLightboxDblClick);
-            
-            // 觸摸事件
-            img.addEventListener('touchstart', handleTouchStart, { passive: false });
-            img.addEventListener('touchmove', handleTouchMove, { passive: false });
-            img.addEventListener('touchend', handleTouchEnd);
-        }
-        
-        function removeTouchListeners() {
-            const img = document.getElementById('lightboxImg');
-            img.removeEventListener('dblclick', onLightboxDblClick);
-            img.removeEventListener('touchstart', handleTouchStart);
-            img.removeEventListener('touchmove', handleTouchMove);
-            img.removeEventListener('touchend', handleTouchEnd);
-        }
-        
-        function onLightboxDblClick() {
-            zoomLevel = zoomLevel > 1 ? 1 : 2;
-            if (zoomLevel === 1) {
-                translateX = 0;
-                translateY = 0;
-            }
-            applyZoom();
-        }
-        
-        function handleTouchStart(e) {
-            if (e.touches.length === 2) {
-                // 雙指：記錄初始縮放
-                touchStartDistance = getTouchDistance(e.touches);
-                touchStartZoom = zoomLevel;
-            } else if (e.touches.length === 1) {
-                // 單指：記錄起始位置
-                isPanning = true;
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-                touchStartTransX = translateX;
-                touchStartTransY = translateY;
-            }
-        }
-        
-        function handleTouchMove(e) {
-            if (e.touches.length === 2) {
-                // 雙指縮放
-                e.preventDefault();
-                const currentDistance = getTouchDistance(e.touches);
-                const scale = currentDistance / touchStartDistance;
-                // 降低敏感度，只允許 0.8x 到 2.5x 範圍
-                zoomLevel = Math.max(1, Math.min(4, touchStartZoom * scale));
-                
-                // 缩放时重置平移
-                if (zoomLevel <= 1) {
-                    translateX = 0;
-                    translateY = 0;
-                }
-                applyZoom();
-            } else if (e.touches.length === 1 && isPanning) {
-                const deltaX = e.touches[0].clientX - touchStartX;
-                const deltaY = e.touches[0].clientY - touchStartY;
-                
-                if (zoomLevel > 1) {
-                    // 縮放狀態：平移（降低敏感度 * 0.5）
-                    translateX = touchStartTransX + deltaX * 0.5;
-                    translateY = touchStartTransY + deltaY * 0.5;
-                }
-                // 即時限制邊界
-                clampTranslation();
-                applyZoom();
-            }
-        }
-        
-        function handleTouchEnd(e) {
-            if (e.touches.length < 2) {
-                touchStartDistance = 0;
-            }
-            
-            if (e.touches.length === 0) {
-                isPanning = false;
-                
-                // 縮放太小回到原大小
-                if (zoomLevel < 1.15) {
-                    zoomLevel = 1;
-                    translateX = 0;
-                    translateY = 0;
-                    applyZoom();
-                }
-            }
-        }
-        
-        // 限制平移範圍（更嚴格）
-        function clampTranslation() {
-            if (zoomLevel <= 1) {
-                translateX = 0;
-                translateY = 0;
-                return;
-            }
-            
-            const screenW = window.innerWidth;
-            const screenH = window.innerHeight;
-            // 根據縮放比例計算最大偏移
-            const maxOffsetX = screenW * 0.4 * (zoomLevel - 1);
-            const maxOffsetY = screenH * 0.4 * (zoomLevel - 1);
-            
-            // 嚴格限制
-            translateX = Math.max(-maxOffsetX, Math.min(maxOffsetX, translateX));
-            translateY = Math.max(-maxOffsetY, Math.min(maxOffsetY, translateY));
-        }
-        
-        function getTouchDistance(touches) {
-            const dx = touches[0].clientX - touches[1].clientX;
-            const dy = touches[0].clientY - touches[1].clientY;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-        
-        // ===== 刪除圖片 =====
-        async function deleteCurrentImage() {
-            if (!lightboxStoreKey || lightboxImages.length === 0) return;
-            
-            const confirmed = confirm('確定要刪除這張圖片嗎？');
-            if (!confirmed) return;
-            
-            const imageToDelete = lightboxImages[lightboxIndex];
+            const btn = document.getElementById('downloadBtn');
+            btn.textContent = '🔄 下載中...';
+            btn.disabled = true;
             
             try {
-                // 從 IndexedDB 刪除
-                await deleteImageFromDB(lightboxStoreKey, imageToDelete);
-                
-                // 從緩存刪除
-                const idx = imageCache[lightboxStoreKey].indexOf(imageToDelete);
-                if (idx > -1) {
-                    imageCache[lightboxStoreKey].splice(idx, 1);
-                }
-                
-                // 如果刪除後沒有圖片了，清空該店舖的緩存
-                if (imageCache[lightboxStoreKey].length === 0) {
-                    delete imageCache[lightboxStoreKey];
-                }
-                
-                // 更新顯示
-                lightboxImages = imageCache[lightboxStoreKey] || [];
-                
-                if (lightboxImages.length === 0) {
-                    // 沒有圖片了，關閉 lightbox
-                    closeLightbox();
+                const snapshot = await firebaseDB.ref('deliveryData').once('value');
+                const data = snapshot.val();
+                if (data && data.stores) {
+                    completedStores = data.stores;
+                    saveCompletedStores();
+                    renderStoreList();
+                    updateStats();
+                    showToast('下載成功', 'success');
+                    document.getElementById('syncStatus').textContent = '下載完成 ' + new Date().toLocaleTimeString();
                 } else {
-                    // 調整 index
-                    lightboxIndex = Math.min(lightboxIndex, lightboxImages.length - 1);
-                    resetZoom();
-                    showLightboxImage();
+                    showToast('雲端無數據', 'info');
                 }
-                
-                // 刷新頁面
-                renderCompletedPage();
-                renderGalleryStoreList();
-                
-                alert('圖片已刪除');
-            } catch (err) {
-                console.error('刪除失敗:', err);
-                alert('刪除失敗，請稍後再試');
+            } catch (e) {
+                console.error('下載失敗:', e);
+                showToast('下載失敗', 'error');
+            } finally {
+                btn.textContent = '⬇️ 下載數據';
+                btn.disabled = false;
             }
         }
 
-        // ===== 圖片庫頁面 =====
-        function renderGalleryStoreList() {
-            const completed = getCompletedStores();
-
-            // 左側店號列表（可點擊導航）
-            const listEl = document.getElementById('galleryStoreList');
-            listEl.innerHTML = completed.map(s => {
-                const imgCount = imageCache[s.key]?.length || 0;
-                return `<div class="gallery-store-item ${imgCount > 0 ? 'has-img' : ''}" data-key="${s.key}" onclick="scrollToStoreSection('${s.key}')">
-                    <div class="store-num">${s.id}</div>
-                    <div class="store-img-count">${imgCount > 0 ? imgCount + '張' : '未拍照'}</div>
-                </div>`;
-            }).join('');
-
-            // 右側顯示所有已完成店舖（包括無圖片的）
-            renderAllGalleryImages(completed);
-        }
-
-        function renderAllGalleryImages(completedStores) {
-            const gridEl = document.getElementById('galleryImgGrid');
-            document.getElementById('galleryContentHeader').innerHTML = '';
-            
-            if (completedStores.length === 0) {
-                gridEl.innerHTML = `<div class="gallery-empty">尚無已完成項目</div>`;
-                return;
-            }
-
-            gridEl.innerHTML = completedStores.map(s => {
-                const images = imageCache[s.key] || [];
-                const imgGrid = images.length > 0 
-                    ? `<div class="store-img-grid">${images.map((img, idx) => 
-                        `<div class="gallery-img-item" onclick="openLightbox('${s.key}', ${idx})"><img src="${img}" alt="圖片"></div>`
-                      ).join('')}</div>`
-                    : `<div class="gallery-no-images">尚未拍照記錄</div>`;
-                
-                return `
-                    <div class="gallery-store-section" id="gallery-section-${s.key}">
-                        <div class="gallery-store-header">
-                            <span class="store-id">${s.id}</span>
-                        </div>
-                        ${imgGrid}
-                        <div class="gallery-store-addr">${s.addr}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // 點擊左側店號滾動到對應區域
-        function scrollToStoreSection(key) {
-            const section = document.getElementById(`gallery-section-${key}`);
-            if (section) {
-                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                
-                // 高亮左側選中的店號
-                document.querySelectorAll('.gallery-store-item').forEach(item => {
-                    item.classList.toggle('active', item.dataset.key === key);
-                });
-            }
-        }
-
-        // ===== Day 按鈕切換 =====
-
-        // ===== Day 按鈕切換 =====
-        document.querySelectorAll('.day-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const day = this.dataset.day;
-
-                document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-
-                document.querySelectorAll('.store-list').forEach(l => l.classList.remove('active'));
-                document.getElementById(`list-${day}`).classList.add('active');
-
-                renderCurrentDay();
-            });
-        });
-
-        // ===== 修改完成時間 =====
-        function setupTimeEditListeners() {
-            document.querySelectorAll('.row-time').forEach(el => {
-                // 移除舊的事件監聽器（避免重複綁定）
-                el.replaceWith(el.cloneNode(true));
-            });
-            // 重新綁定所有事件
-            document.querySelectorAll('.row-time').forEach(el => {
-                el.addEventListener('click', function() {
-                    openTimeEdit(this);
-                });
-            });
-        }
-
-        function openTimeEdit(el) {
-            const key = el.dataset.key;
-            const currentTime = parseInt(el.dataset.time);
-            const date = new Date(currentTime);
-            const currentYear = date.getFullYear();
-            const currentMonth = date.getMonth();
-            const currentDay = date.getDate();
-            const currentHour = date.getHours();
-            const currentMinute = date.getMinutes();
-            
-            // 生成日期選項（前後各3天）
-            const dates = [];
-            for (let i = -3; i <= 3; i++) {
-                const d = new Date(currentYear, currentMonth, currentDay + i);
-                dates.push({
-                    date: d.getDate(),
-                    month: d.getMonth() + 1,
-                    full: d,
-                    isToday: i === 0
-                });
-            }
-            
-            // 創建自定義時間選擇彈窗
-            const modal = document.createElement('div');
-            modal.className = 'time-picker-modal';
-            modal.innerHTML = `
-                <div class="time-picker-overlay"></div>
-                <div class="time-picker-content">
-                    <div class="time-picker-title">修改完成時間</div>
-                    <div class="time-picker-body">
-                        <div class="time-col date-col">
-                            <div class="time-col-label">日</div>
-                            <div class="time-scroll" id="date-scroll">
-                                ${dates.map(d => 
-                                    `<div class="time-option ${d.isToday ? 'selected' : ''}" data-date="${d.full.toDateString()}">${d.month}/${d.date}${d.isToday ? ' 今天' : ''}</div>`
-                                ).join('')}
-                            </div>
-                        </div>
-                        <div class="time-col">
-                            <div class="time-col-label">時</div>
-                            <div class="time-scroll" id="hour-scroll">
-                                ${Array.from({length: 24}, (_, i) => 
-                                    `<div class="time-option ${i === currentHour ? 'selected' : ''}" data-val="${i}">${i.toString().padStart(2, '0')}</div>`
-                                ).join('')}
-                            </div>
-                        </div>
-                        <div class="time-col">
-                            <div class="time-col-label">分</div>
-                            <div class="time-scroll" id="minute-scroll">
-                                ${Array.from({length: 60}, (_, i) => 
-                                    `<div class="time-option ${i === currentMinute ? 'selected' : ''}" data-val="${i}">${i.toString().padStart(2, '0')}</div>`
-                                ).join('')}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="time-picker-btns">
-                        <div class="time-btn cancel">取消</div>
-                        <div class="time-btn confirm">確定</div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            let selectedDateStr = date.toDateString();
-            let selectedHour = currentHour;
-            let selectedMinute = currentMinute;
-            
-            // 點擊選項
-            modal.querySelectorAll('.time-option').forEach(opt => {
-                opt.addEventListener('click', function() {
-                    const scroll = this.closest('.time-scroll');
-                    const col = scroll.id;
-                    modal.querySelectorAll(`#${col} .time-option`).forEach(o => o.classList.remove('selected'));
-                    this.classList.add('selected');
-                    
-                    if (col === 'date-scroll') {
-                        selectedDateStr = this.dataset.date;
-                    } else if (col === 'hour-scroll') {
-                        selectedHour = parseInt(this.dataset.val);
-                    } else {
-                        selectedMinute = parseInt(this.dataset.val);
-                    }
-                });
-            });
-            
-            // 關閉彈窗函數
-            const closeModal = () => {
-                const m = document.querySelector('.time-picker-modal');
-                if (m && m.parentNode) {
-                    m.parentNode.removeChild(m);
-                }
-            };
-            
-            // 取消
-            modal.querySelector('.cancel').addEventListener('click', (e) => {
-                e.preventDefault();
-                closeModal();
-            });
-            
-            // 確定
-            modal.querySelector('.confirm').addEventListener('click', (e) => {
-                e.preventDefault();
-                
-                // 獲取當前選中的值（從 DOM 中讀取，確保是最新值）
-                const currentModal = document.querySelector('.time-picker-modal');
-                if (!currentModal) return;
-                
-                const dateSelected = currentModal.querySelector('#date-scroll .selected');
-                const hourSelected = currentModal.querySelector('#hour-scroll .selected');
-                const minSelected = currentModal.querySelector('#minute-scroll .selected');
-                
-                const finalDateStr = dateSelected ? dateSelected.dataset.date : selectedDateStr;
-                const finalHour = hourSelected ? parseInt(hourSelected.dataset.val) : selectedHour;
-                const finalMinute = minSelected ? parseInt(minSelected.dataset.val) : selectedMinute;
-                
-                const newDate = new Date(finalDateStr);
-                newDate.setHours(finalHour, finalMinute, 0, 0);
-                const newTimestamp = newDate.getTime();
-                
-                // 更新 localStorage
-                completedStores[key].time = newTimestamp;
-                localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
-                
-                // ===== 修復3: 標記變更並觸發同步 =====
-                markAsChanged('stores', key);
-                
-                // 關閉彈窗
-                closeModal();
-                
-                // 延遲刷新已完成頁面以更新排序
-                setTimeout(() => {
-                    renderCompletedPage();
-                    setupTimeEditListeners();
-                }, 50);
-                
-                // 觸發同步到雲端
-                setTimeout(() => {
-                    syncToCloud().catch(e => console.error('同步失敗:', e));
-                }, 500);
-            });
-            
-            // 點擊遮罩關閉
-            modal.querySelector('.time-picker-overlay').addEventListener('click', (e) => {
-                e.preventDefault();
-                closeModal();
-            });
-            
-            // 滾動定位到當前選擇
-            setTimeout(() => {
-                const dateSelected = modal.querySelector('#date-scroll .selected');
-                const hourSelected = modal.querySelector('#hour-scroll .selected');
-                const minSelected = modal.querySelector('#minute-scroll .selected');
-                if (dateSelected) dateSelected.scrollIntoView({ block: 'center' });
-                if (hourSelected) hourSelected.scrollIntoView({ block: 'center' });
-                if (minSelected) minSelected.scrollIntoView({ block: 'center' });
-            }, 50);
-        }
-
-        // ===== Tab 切換 =====
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const page = this.dataset.page;
-
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-
-                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-                document.getElementById(`page-${page}`).classList.add('active');
-
-                if (page === 'completed') {
-                    renderCompletedPage();
-                    updateCompletedPageStats();
-                } else if (page === 'gallery') {
-                    renderGalleryStoreList();
-                }
-            });
-        });
-
-        // ===== 導出 JPG 功能 =====
-        function exportToImage() {
-            const completed = [];
-            for (const [day, stores] of Object.entries(originalData)) {
-                for (const s of stores) {
-                    const key = `${day}-${s.id}`;
-                    if (completedStores[key]) {
-                        completed.push({
-                            ...s,
-                            day: day,
-                            time: completedStores[key].time
-                        });
-                    }
-                }
-            }
-
-            if (completed.length === 0) {
-                alert('尚無已完成項目');
-                return;
-            }
-
-            // 獲取遞增編號
-            let exportCounter = parseInt(localStorage.getItem('fanStandExportCounter') || '0');
-            exportCounter++;
-            localStorage.setItem('fanStandExportCounter', exportCounter);
-            const fileNumber = String(exportCounter).padStart(2, '0');
-
-            completed.sort((a, b) => a.time - b.time);
-
-            const byDate = {};
-            completed.forEach(s => {
-                const d = new Date(s.time);
-                const dateKey = `${d.getMonth() + 1}/${d.getDate()}`;
-                if (!byDate[dateKey]) {
-                    byDate[dateKey] = [];
-                }
-                byDate[dateKey].push(s.id);
-            });
-
-            let exportHtml = `
-                <div style="padding: 40px; background: #ffffff; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
-                    <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px;">Small Fan Stand 送貨完成列表</h2>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f5f5f7;">
-                                <th style="border: 1px solid #ddd; padding: 14px; text-align: left; width: 100px;">日期</th>
-                                <th style="border: 1px solid #ddd; padding: 14px; text-align: left;">店號</th>
-                                <th style="border: 1px solid #ddd; padding: 14px; text-align: center; width: 80px;">數量</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            for (const [date, ids] of Object.entries(byDate)) {
-                exportHtml += `
-                    <tr>
-                        <td style="border: 1px solid #ddd; padding: 14px; font-weight: 500; color: #34c759;">${date}</td>
-                        <td style="border: 1px solid #ddd; padding: 14px;">${ids.join(', ')}</td>
-                        <td style="border: 1px solid #ddd; padding: 14px; text-align: center; font-weight: 600; color: #007aff;">${ids.length}</td>
-                    </tr>
-                `;
-            }
-
-            exportHtml += `
-                        </tbody>
-                    </table>
-                    <p style="text-align: center; margin-top: 20px; color: #86868b; font-size: 14px;">總計 ${completed.length} 項</p>
-                </div>
-            `;
-
-            const tempContainer = document.createElement('div');
-            tempContainer.className = 'export-preview';
-            tempContainer.innerHTML = exportHtml;
-            document.body.appendChild(tempContainer);
-
-            if (!document.getElementById('html2canvas-script')) {
-                const script = document.createElement('script');
-                script.id = 'html2canvas-script';
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                script.onload = doExport;
-                document.head.appendChild(script);
-            } else {
-                doExport();
-            }
-
-            function doExport() {
-                html2canvas(tempContainer, {
-                    scale: 2,
-                    backgroundColor: '#ffffff',
-                    useCORS: true,
-                    width: 640
-                }).then(canvas => {
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                    const link = document.createElement('a');
-                    link.download = `10-${fileNumber}.jpg`;
-                    link.href = dataUrl;
-                    link.click();
-                    document.body.removeChild(tempContainer);
-                }).catch(err => {
-                    alert('導出失敗，請稍後再試');
-                    console.error(err);
-                    document.body.removeChild(tempContainer);
-                });
-            }
-        }
-
-        // ===== 匯出圖文報告功能（多頁A4，按日期分頁）=====
-        async function exportWithImages() {
-            const completed = [];
-            for (const [day, stores] of Object.entries(originalData)) {
-                for (const s of stores) {
-                    const key = `${day}-${s.id}`;
-                    if (completedStores[key]) {
-                        completed.push({
-                            ...s,
-                            day: day,
-                            time: completedStores[key].time,
-                            key: key
-                        });
-                    }
-                }
-            }
-
-            if (completed.length === 0) {
-                alert('尚無已完成項目');
-                return;
-            }
-
-            // 按日期分組
-            completed.sort((a, b) => a.time - b.time);
-            const byDate = [];
-            const dateMap = {};
-            completed.forEach(s => {
-                const d = new Date(s.time);
-                const dateKey = `${d.getMonth() + 1}月${d.getDate()}日`;
-                const weekDay = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][d.getDay()];
-                const fullDateKey = `${dateKey} (${weekDay})`;
-                if (!dateMap[fullDateKey]) {
-                    dateMap[fullDateKey] = { date: fullDateKey, stores: [] };
-                    byDate.push(dateMap[fullDateKey]);
-                }
-                dateMap[fullDateKey].stores.push(s);
-            });
-
-            // 獲取遞增編號
-            let exportCounter = parseInt(localStorage.getItem('fanStandExportCounter') || '0');
-            exportCounter++;
-            localStorage.setItem('fanStandExportCounter', exportCounter);
-            const fileNumber = String(exportCounter).padStart(2, '0');
-
-            // A4 尺寸設定 (595 x 842 pt)，預留邊距
-            const A4_WIDTH = 595;
-            const A4_HEIGHT = 842;
-            const PAGE_PADDING = 40;
-            const HEADER_HEIGHT = 80; // 標題高度
-            const FOOTER_HEIGHT = 50; // 頁腳高度
-            const DATE_HEADER_HEIGHT = 50; // 日期標題高度
-            const AVAILABLE_HEIGHT = A4_HEIGHT - PAGE_PADDING * 2 - HEADER_HEIGHT - FOOTER_HEIGHT;
-            const STORE_ITEM_HEIGHT = 130; // 每個店舖項目估算高度
-
-            // 為每個日期分頁
-            const pages = [];
-            let currentPageStores = [];
-            let currentPageDate = null;
-            let currentPageUsedHeight = 0;
-            let currentPageIndex = 1;
-
-            byDate.forEach((dateGroup, dateIndex) => {
-                const dateHeaderHeight = DATE_HEADER_HEIGHT;
-                const storesTotalHeight = dateGroup.stores.length * STORE_ITEM_HEIGHT;
-                const totalNeededHeight = dateHeaderHeight + storesTotalHeight;
-
-                // 檢查這個日期是否能放入當前頁面
-                if (currentPageDate !== null && currentPageDate !== dateGroup.date) {
-                    // 新日期，保存當前頁面並開始新頁
-                    if (currentPageStores.length > 0) {
-                        pages.push({
-                            date: currentPageDate,
-                            stores: currentPageStores,
-                            pageIndex: currentPageIndex,
-                            isFirstPageOfDate: true
-                        });
-                        currentPageIndex++;
-                    }
-                    currentPageStores = [];
-                    currentPageUsedHeight = 0;
-                }
-
-                // 如果這個日期單獨就需要多頁
-                let remainingStores = [...dateGroup.stores];
-                while (remainingStores.length > 0) {
-                    const availableForDate = currentPageUsedHeight === 0 ? AVAILABLE_HEIGHT - dateHeaderHeight : AVAILABLE_HEIGHT;
-                    const canFitCount = Math.floor(availableForDate / STORE_ITEM_HEIGHT);
-                    const storesToAdd = remainingStores.slice(0, canFitCount);
-
-                    if (storesToAdd.length === 0 && remainingStores.length > 0) {
-                        // 當前頁面放不下，開新頁
-                        if (currentPageStores.length > 0) {
-                            pages.push({
-                                date: currentPageDate || dateGroup.date,
-                                stores: currentPageStores,
-                                pageIndex: currentPageIndex,
-                                isFirstPageOfDate: currentPageDate !== dateGroup.date
-                            });
-                            currentPageIndex++;
-                        }
-                        currentPageStores = [];
-                        currentPageUsedHeight = 0;
-                        currentPageDate = dateGroup.date;
-                        continue;
-                    }
-
-                    currentPageStores = currentPageStores.concat(storesToAdd);
-                    currentPageUsedHeight += (currentPageUsedHeight === 0 ? dateHeaderHeight : 0) + storesToAdd.length * STORE_ITEM_HEIGHT;
-                    currentPageDate = dateGroup.date;
-                    remainingStores = remainingStores.slice(storesToAdd.length);
-
-                    if (remainingStores.length > 0) {
-                        // 還有剩餘，保存當前頁面
-                        pages.push({
-                            date: dateGroup.date,
-                            stores: currentPageStores,
-                            pageIndex: currentPageIndex,
-                            isFirstPageOfDate: pages.filter(p => p.date === dateGroup.date).length === 0
-                        });
-                        currentPageIndex++;
-                        currentPageStores = [];
-                        currentPageUsedHeight = 0;
-                    }
-                }
-            });
-
-            // 保存最後一頁
-            if (currentPageStores.length > 0) {
-                pages.push({
-                    date: currentPageDate,
-                    stores: currentPageStores,
-                    pageIndex: currentPageIndex,
-                    isFirstPageOfDate: pages.filter(p => p.date === currentPageDate).length === 0
-                });
-            }
-
-            // 確保 html2canvas 和 JSZip 已加載
-            const loadScript = (src, id) => {
-                return new Promise((resolve) => {
-                    if (document.getElementById(id)) {
-                        resolve();
-                        return;
-                    }
-                    const script = document.createElement('script');
-                    script.id = id;
-                    script.src = src;
-                    script.onload = resolve;
-                    document.head.appendChild(script);
-                });
-            };
-
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas-script');
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'jszip-script');
-
-            // 生成所有頁面並打包成 ZIP
-            const totalPages = pages.length;
-            const zip = new JSZip();
-            // 根據總頁數動態調整文件夾名稱位數
-            const folderPadLength = totalPages >= 100 ? 3 : (totalPages >= 10 ? 2 : 1);
-            const folderNum = String(fileNumber).padStart(folderPadLength, '0');
-            const folder = zip.folder(`送貨報告_${folderNum}`);
-
-            for (let i = 0; i < pages.length; i++) {
-                const page = pages[i];
-                const pageHtml = generatePageHtml(page, totalPages, completed.length);
-                
-                const tempContainer = document.createElement('div');
-                tempContainer.style.cssText = 'position: fixed; top: -9999px; left: -9999px; width: 595px; height: 842px;';
-                tempContainer.innerHTML = pageHtml;
-                document.body.appendChild(tempContainer);
-
-                try {
-                    const canvas = await html2canvas(tempContainer, {
-                        scale: 2,
-                        backgroundColor: '#ffffff',
-                        useCORS: true,
-                        width: A4_WIDTH,
-                        height: A4_HEIGHT
-                    });
-
-                    // 將 Canvas 轉為 Blob
-                    const blob = await new Promise(resolve => {
-                        canvas.toBlob(resolve, 'image/jpeg', 0.9);
-                    });
-
-                    // 添加到 ZIP
-                    // 根據總頁數動態調整頁碼位數
-                    const padLength = totalPages >= 100 ? 3 : (totalPages >= 10 ? 2 : 1);
-                    const pageNum = String(i + 1).padStart(padLength, '0');
-                    folder.file(`頁${pageNum}.jpg`, blob);
-                } catch (err) {
-                    console.error('頁面生成失敗:', err);
-                } finally {
-                    document.body.removeChild(tempContainer);
-                }
-            }
-
-            // 生成並下載 ZIP
-            try {
-                const zipBlob = await zip.generateAsync({ type: 'blob' });
-                const link = document.createElement('a');
-                link.download = `10-${fileNumber}.zip`;
-                link.href = URL.createObjectURL(zipBlob);
-                link.click();
-                alert(`已成功匯出 ${totalPages} 頁圖文報告（打包為 ZIP）`);
-            } catch (err) {
-                console.error('ZIP 生成失敗:', err);
-                alert('匯出失敗，請稍後再試');
-            }
-        }
-
-        // 生成單頁HTML
-        function generatePageHtml(page, totalPages, totalStores) {
-            const dateHeaderHtml = `
-                <div style="background: linear-gradient(135deg, #007aff, #5856d6); color: white; padding: 10px 15px; border-radius: 8px; font-size: 16px; font-weight: 600; margin-bottom: 15px;">
-                    ${page.date} - 完成 ${getDateStoreCount(page.date)} 項
-                </div>
-            `;
-
-            const storesHtml = page.stores.map(s => {
-                const images = imageCache[s.key] || [];
-                const timeStr = new Date(s.time).toLocaleTimeString('zh-Hant', { hour: '2-digit', minute: '2-digit' });
-                const imgHtml = images.map(img => 
-                    `<img src="${img}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e5e7; margin-right: 8px;">`
-                ).join('');
-                
-                return `
-                    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: #f5f5f7; border-radius: 10px; margin-bottom: 12px;">
-                        <div style="flex-shrink: 0;">${imgHtml || '<div style="width: 100px; height: 100px; background: #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">無圖片</div>'}</div>
-                        <div style="flex: 1;">
-                            <div style="font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px;">#${s.id}</div>
-                            <div style="font-size: 13px; color: #666; line-height: 1.4; margin-bottom: 4px;">${s.addr}</div>
-                            <div style="font-size: 12px; color: #007aff;">✓ 完成時間: ${timeStr}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            return `
-                <div style="width: 595px; height: 842px; padding: 40px; background: #ffffff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; box-sizing: border-box; display: flex; flex-direction: column;">
-                    <h2 style="text-align: center; margin-bottom: 20px; font-size: 22px; color: #1d1d1f; border-bottom: 2px solid #007aff; padding-bottom: 15px;">Small Fan Stand 送貨完成報告</h2>
-                    <div style="flex: 1; overflow: hidden;">
-                        ${dateHeaderHtml}
-                        <div style="display: flex; flex-direction: column;">
-                            ${storesHtml}
-                        </div>
-                    </div>
-                    <div style="text-align: center; padding-top: 15px; border-top: 1px solid #e5e5e7; color: #86868b; font-size: 12px; margin-top: auto;">
-                        第 ${page.pageIndex} 頁 / 共 ${totalPages} 頁 | 總計 ${totalStores} 項完成 | 匯出時間: ${new Date().toLocaleString('zh-Hant')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // 獲取某日期總店數
-        function getDateStoreCount(dateStr) {
-            const completed = [];
-            for (const [day, stores] of Object.entries(originalData)) {
-                for (const s of stores) {
-                    const key = `${day}-${s.id}`;
-                    if (completedStores[key]) {
-                        const d = new Date(completedStores[key].time);
-                        const dateKey = `${d.getMonth() + 1}月${d.getDate()}日`;
-                        const weekDay = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][d.getDay()];
-                        const fullDateKey = `${dateKey} (${weekDay})`;
-                        if (fullDateKey === dateStr) {
-                            completed.push(s);
-                        }
-                    }
-                }
-            }
-            return completed.length;
-        }
-
-        // 啟動
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
+        // ===== 工具函數 =====
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.background = type === 'error' ? '#ff3b30' : type === 'success' ? '#34c759' : 'rgba(0,0,0,0.8)';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
     </script>
 </body>
