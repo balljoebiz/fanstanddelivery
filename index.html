@@ -2147,8 +2147,29 @@
         function updateSyncStatus(status) {
             const statusEl = document.getElementById('syncStatus');
             if (statusEl) {
-                statusEl.textContent = status;
                 const lastSync = localStorage.getItem('fanStandLastSync');
+                let statusText = status;
+                
+                // 添加最後同步時間
+                if (lastSync) {
+                    const lastSyncDate = new Date(parseInt(lastSync));
+                    const timeStr = lastSyncDate.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+                    statusText += ` (上次: ${timeStr})`;
+                }
+                
+                statusEl.textContent = statusText;
+                
+                // 根據狀態設置顏色
+                if (status.includes('失敗')) {
+                    statusEl.style.color = '#ff3b30';
+                } else if (status.includes('完成') || status.includes('已同步')) {
+                    statusEl.style.color = '#34c759';
+                } else if (status.includes('中')) {
+                    statusEl.style.color = '#0071e3';
+                } else {
+                    statusEl.style.color = '#86868b';
+                }
+                
                 if (lastSync) {
                     const date = new Date(parseInt(lastSync));
                     statusEl.title = '上次同步: ' + date.toLocaleString();
@@ -2177,13 +2198,13 @@
                     
                     // ===== 修復2: 正確合併商店數據（以時間戳為準） =====
                     if (data.stores) {
-                        for (const store of data.stores) {
-                            if (store.key && store.time) {
-                                const localKey = store.key;
-                                const localTime = completedStores[localKey]?.time || 0;
+                        // data.stores 是對象 {key: {time: timestamp}, ...}
+                        for (const [storeKey, storeData] of Object.entries(data.stores)) {
+                            if (storeKey && storeData && storeData.time) {
+                                const localTime = completedStores[storeKey]?.time || 0;
                                 // 只有雲端數據較新時才更新
-                                if (store.time > localTime) {
-                                    completedStores[localKey] = { time: store.time };
+                                if (storeData.time > localTime) {
+                                    completedStores[storeKey] = { time: storeData.time };
                                 }
                             }
                         }
@@ -2192,12 +2213,15 @@
                     
                     // ===== 修復2: 正確合併圖片數據 =====
                     if (data.images) {
-                        for (const img of data.images) {
-                            // 檢查圖片是否已存在
-                            const existingImages = await getImagesForStore(img.storeKey);
-                            const exists = existingImages.some(i => i.imageId === img.imageId);
-                            if (!exists) {
-                                await saveImageToLocal(img.storeKey, img.imageId, img.imageData);
+                        // data.images 是對象 {storeKey_imageId: {storeKey, imageId, imageData}, ...}
+                        for (const [imageKey, imgData] of Object.entries(data.images)) {
+                            if (imgData && imgData.storeKey && imgData.imageId) {
+                                // 檢查圖片是否已存在
+                                const existingImages = await getImagesForStore(imgData.storeKey);
+                                const exists = existingImages.some(i => i.imageId === imgData.imageId);
+                                if (!exists) {
+                                    await saveImageToLocal(imgData.storeKey, imgData.imageId, imgData.imageData);
+                                }
                             }
                         }
                         // 重新加載圖片緩存
@@ -2220,9 +2244,36 @@
 
         // 強制立即同步
         async function forceSync() {
-            showToast('正在同步...', 'info');
-            await syncToCloud();
-            showToast('同步完成', 'success');
+            const syncBtn = document.getElementById('syncBtn');
+            const originalText = syncBtn ? syncBtn.innerHTML : '☁️ 同步雲端';
+            
+            // 更新按鈕狀態為同步中
+            if (syncBtn) {
+                syncBtn.innerHTML = '🔄 同步中...';
+                syncBtn.disabled = true;
+                syncBtn.style.opacity = '0.7';
+            }
+            updateSyncStatus('正在同步到雲端...');
+            
+            try {
+                showToast('正在同步...', 'info');
+                await syncToCloud();
+                showToast('同步完成', 'success');
+                updateSyncStatus('同步完成');
+            } catch (error) {
+                console.error('同步失敗:', error);
+                showToast('同步失敗: ' + error.message, 'error');
+                updateSyncStatus('同步失敗');
+            } finally {
+                // 恢復按鈕狀態
+                setTimeout(() => {
+                    if (syncBtn) {
+                        syncBtn.innerHTML = originalText;
+                        syncBtn.disabled = false;
+                        syncBtn.style.opacity = '1';
+                    }
+                }, 1000);
+            }
         }
 
         // ===== IndexedDB 圖片存儲 =====
