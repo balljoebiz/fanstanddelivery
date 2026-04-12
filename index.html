@@ -2176,7 +2176,21 @@
             // P0-3: 重新加載圖片緩存確保一致性
             await loadAllImageCache();
             
-            renderAll();
+            // 重新渲染所有頁面
+            renderCurrentDay();
+            renderCompletedPage();
+            renderGalleryStoreList();
+            updateStats();
+            updateCompletedPageStats();
+        }
+        
+        // 渲染所有頁面（兼容性函數）
+        function renderAll() {
+            renderCurrentDay();
+            renderCompletedPage();
+            renderGalleryStoreList();
+            updateStats();
+            updateCompletedPageStats();
         }
 
         // 更新同步狀態顯示
