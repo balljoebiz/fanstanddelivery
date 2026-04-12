@@ -1630,8 +1630,11 @@
                 <button class="export-btn" onclick="exportWithImages()" style="background: linear-gradient(135deg, #34c759, #30b350); color: #ffffff;">
                     🖼️ 匯出圖文報告
                 </button>
-                <button class="export-btn" onclick="forceSync()" style="background: linear-gradient(135deg, #0071e3, #0051a2); color: #ffffff;" id="syncBtn">
-                    ☁️ 同步雲端
+                <button class="export-btn" onclick="forceUpload()" style="background: linear-gradient(135deg, #0071e3, #0051a2); color: #ffffff;" id="uploadBtn">
+                    ⬆️ 上載數據
+                </button>
+                <button class="export-btn" onclick="forceDownload()" style="background: linear-gradient(135deg, #5856d6, #4c4ab8); color: #ffffff;" id="downloadBtn">
+                    ⬇️ 下載數據
                 </button>
             </div>
             <div id="syncStatus" style="text-align: center; font-size: 12px; color: #86868b; margin-top: 8px; padding: 0 20px;">等待同步</div>
@@ -2242,35 +2245,69 @@
             });
         }
 
-        // 強制立即同步
-        async function forceSync() {
-            const syncBtn = document.getElementById('syncBtn');
-            const originalText = syncBtn ? syncBtn.innerHTML : '☁️ 同步雲端';
+        // 強制上載數據到雲端
+        async function forceUpload() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            const originalText = uploadBtn ? uploadBtn.innerHTML : '⬆️ 上載數據';
             
-            // 更新按鈕狀態為同步中
-            if (syncBtn) {
-                syncBtn.innerHTML = '🔄 同步中...';
-                syncBtn.disabled = true;
-                syncBtn.style.opacity = '0.7';
+            // 更新按鈕狀態為上載中
+            if (uploadBtn) {
+                uploadBtn.innerHTML = '🔄 上載中...';
+                uploadBtn.disabled = true;
+                uploadBtn.style.opacity = '0.7';
             }
-            updateSyncStatus('正在同步到雲端...');
+            updateSyncStatus('正在上載數據到雲端...');
             
             try {
-                showToast('正在同步...', 'info');
+                showToast('正在上載數據...', 'info');
                 await syncToCloud();
-                showToast('同步完成', 'success');
-                updateSyncStatus('同步完成');
+                showToast('上載完成', 'success');
+                updateSyncStatus('上載完成');
             } catch (error) {
-                console.error('同步失敗:', error);
-                showToast('同步失敗: ' + error.message, 'error');
-                updateSyncStatus('同步失敗');
+                console.error('上載失敗:', error);
+                showToast('上載失敗: ' + error.message, 'error');
+                updateSyncStatus('上載失敗');
             } finally {
                 // 恢復按鈕狀態
                 setTimeout(() => {
-                    if (syncBtn) {
-                        syncBtn.innerHTML = originalText;
-                        syncBtn.disabled = false;
-                        syncBtn.style.opacity = '1';
+                    if (uploadBtn) {
+                        uploadBtn.innerHTML = originalText;
+                        uploadBtn.disabled = false;
+                        uploadBtn.style.opacity = '1';
+                    }
+                }, 1000);
+            }
+        }
+
+        // 強制下載數據從雲端
+        async function forceDownload() {
+            const downloadBtn = document.getElementById('downloadBtn');
+            const originalText = downloadBtn ? downloadBtn.innerHTML : '⬇️ 下載數據';
+            
+            // 更新按鈕狀態為下載中
+            if (downloadBtn) {
+                downloadBtn.innerHTML = '🔄 下載中...';
+                downloadBtn.disabled = true;
+                downloadBtn.style.opacity = '0.7';
+            }
+            updateSyncStatus('正在從雲端下載數據...');
+            
+            try {
+                showToast('正在下載數據...', 'info');
+                await syncFromCloudOnce();
+                showToast('下載完成', 'success');
+                updateSyncStatus('下載完成');
+            } catch (error) {
+                console.error('下載失敗:', error);
+                showToast('下載失敗: ' + error.message, 'error');
+                updateSyncStatus('下載失敗');
+            } finally {
+                // 恢復按鈕狀態
+                setTimeout(() => {
+                    if (downloadBtn) {
+                        downloadBtn.innerHTML = originalText;
+                        downloadBtn.disabled = false;
+                        downloadBtn.style.opacity = '1';
                     }
                 }, 1000);
             }
