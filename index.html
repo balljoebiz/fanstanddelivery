@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SFS 送貨系統 v10</title>
+    <title>SFS 送貨系統 v11 (含圖片)</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f5f5f7;
             padding-bottom: 80px;
             overflow-x: hidden;
@@ -43,221 +43,230 @@
             transition: all 0.3s;
         }
         .day-btn.active { background: #0071e3; }
-        .store-list { padding: 15px; }
-        .day-section { display: none; }
-        .day-section.active { display: block; }
-        .store-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            transition: all 0.2s;
-        }
-        .store-card.completed { opacity: 0.7; background: #f0f9ff; }
-        .store-info { flex: 1; }
-        .store-id { font-size: 24px; font-weight: 700; color: #0071e3; }
-        .complete-btn {
-            width: 44px; height: 44px;
-            border-radius: 50%;
-            border: 3px solid #e0e0e0;
-            background: white;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: white;
-        }
-        .complete-btn.completed {
-            background: #34c759;
-            border-color: #34c759;
-        }
+        
         /* Stats */
         .stats-row {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             padding: 15px;
             background: white;
-            margin: 0 15px 15px;
+            margin: 15px;
             border-radius: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
         .stat-item {
             flex: 1;
             text-align: center;
-            padding: 12px;
+            padding: 12px 8px;
             background: #f8f9fa;
             border-radius: 12px;
         }
-        .stat-num { font-size: 28px; font-weight: 700; }
-        .stat-label { font-size: 13px; color: #86868b; margin-top: 4px; }
-        /* Sync */
-        .sync-section { padding: 0 15px 15px; }
+        .stat-num { font-size: 24px; font-weight: 700; }
+        .stat-label { font-size: 12px; color: #86868b; margin-top: 4px; }
+        
+        /* Sync Buttons */
+        .sync-section { padding: 0 15px 15px; display:flex; gap:10px; }
         .sync-btn {
-            width: 100%;
-            padding: 14px;
+            flex:1;
+            padding: 14px 10px;
             border: none;
             border-radius: 12px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            margin-bottom: 10px;
             transition: all 0.2s;
         }
         .sync-upload { background: #0071e3; color: white; }
         .sync-download { background: #5856d6; color: white; }
-        .sync-reset { background: linear-gradient(135deg, #ff6b6b, #ee5a52); color: white; }
+        .sync-reset { background: linear-gradient(135deg,#ff6b6b,#ee5a52); color: white; }
         .sync-status {
-            text-align: center;
-            font-size: 13px;
-            color: #86868b;
-            padding: 8px;
+            text-align:center; font-size:13px; color:#86868b; padding:8px;
         }
-        /* Tabs */
-        .tab-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0; right: 0;
+        
+        /* Store Card */
+        .store-list { padding: 15px; }
+        .day-section { display:none; }
+        .day-section.active { display:block; }
+        .store-card {
             background: white;
-            display: flex;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            z-index: 200;
-        }
-        .tab-item {
-            flex: 1;
-            padding: 12px 0;
-            text-align: center;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            color: #86868b;
-            font-size: 11px;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             transition: all 0.2s;
         }
-        .tab-item.active { color: #0071e3; }
-        .tab-icon { font-size: 22px; margin-bottom: 2px; }
-        .page { display: none; }
-        .page.active { display: block; }
-        /* Password */
+        .store-card.completed { opacity:0.75; background:#f0f9ff; }
+        .store-top {
+            display:flex; align-items:center; justify-content:space-between;
+            margin-bottom:8px;
+        }
+        .store-id { font-size:22px; font-weight:700; color:#0071e3; }
+        .complete-btn {
+            width:40px; height:40px; border-radius:50%;
+            border:3px solid #e0e0e0; background:white; cursor:pointer;
+            transition:all 0.3s; display:flex; align-items:center;
+            justify-content:center; font-size:18px; color:white;
+        }
+        .complete-btn.completed { background:#34c759; border-color:#34c759; }
+        
+        /* Image Section */
+        .img-section { margin-top:10px; }
+        .img-label { font-size:12px; color:#86868b; margin-bottom:6px; }
+        .img-thumbs { display:flex; gap:8px; flex-wrap:wrap; }
+        .img-thumb {
+            width:70px; height:70px; border-radius:10px;
+            object-fit:cover; cursor:pointer; border:2px solid transparent;
+            transition:all 0.2s;
+        }
+        .img-thumb:hover { transform:scale(1.05); }
+        .img-add-btn {
+            width:70px; height:70px; border-radius:10px; border:2px dashed #ccc;
+            background:#fafafa; cursor:pointer; display:flex; align-items:center;
+            justify-content:center; font-size:24px; color:#999;
+            transition:all 0.2s;
+        }
+        .img-add-btn:hover { border-color:#0071e3; color:#0071e3; }
+        .no-images-hint { font-size:12px; color:#bbb; }
+        
+        /* Tabs */
+        .tab-bar {
+            position:fixed; bottom:0; left:0; right:0;
+            background:white; display:flex; box-shadow:0 -2px 10px rgba(0,0,0,0.1); z-index:200;
+        }
+        .tab-item {
+            flex:1; padding:12px 0; text-align:center; cursor:pointer;
+            border:none; background:transparent; color:#86868b; font-size:11px; transition:all 0.2s;
+        }
+        .tab-item.active { color:#0071e3; }
+        .tab-icon { font-size:22px; margin-bottom:2px; }
+        .page { display:none; }
+        .page.active { display:block; }
+        
+        /* Completed List */
+        .completed-time { color:#34c759; font-size:13px; font-weight:500; }
+        .completed-img-count { 
+            font-size:11px; background:#ff9500; color:white;
+            padding:2px 8px; border-radius:10px; margin-left:8px;
+        }
+        
+        /* Gallery Grid */
+        .gallery-grid {
+            display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+        }
+        .gallery-item {
+            aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer;
+        }
+        .gallery-item img { width:100%; height:100%; object-fit:cover; }
+        
+        /* Password Screen */
         .password-screen {
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
+            position:fixed; inset:0;
+            background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+            display:flex; align-items:center; justify-content:center; z-index:9999;
         }
-        .password-screen.hidden { display: none; }
+        .password-screen.hidden { display:none; }
         .password-box {
-            background: white;
-            padding: 40px 30px;
-            border-radius: 20px;
-            text-align: center;
-            width: 90%;
-            max-width: 350px;
+            background:white; padding:40px 30px; border-radius:20px;
+            text-align:center; width:90%; max-width:350px;
         }
-        .password-box h2 { margin-bottom: 10px; color: #333; }
-        .password-box p { color: #666; margin-bottom: 20px; font-size: 14px; }
+        .password-box h2 { margin-bottom:10px; color:#333; }
+        .password-box p { color:#666; margin-bottom:20px; font-size:14px; }
         .password-input {
-            width: 100%;
-            padding: 14px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 18px;
-            text-align: center;
-            margin-bottom: 15px;
+            width:100%; padding:14px; border:2px solid #e0e0e0; border-radius:10px;
+            font-size:18px; text-align:center; margin-bottom:15px;
         }
-        .password-input:focus { border-color: #667eea; outline: none; }
+        .password-input:focus { border-color:#667eea; outline:none; }
         .password-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
+            width:100%; padding:14px; background:linear-gradient(135deg,#667eea,#764ba2);
+            color:white; border:none; border-radius:10px; font-size:16px;
+            font-weight:600; cursor:pointer;
         }
-        .password-error { color: #ff3b30; font-size: 14px; margin-top: 10px; display: none; }
-        /* Completed */
-        .completed-time { color: #34c759; font-size: 14px; font-weight: 500; }
+        .password-error { color:#ff3b30; font-size:14px; margin-top:10px; display:none; }
+        
+        /* Lightbox */
+        .lightbox {
+            position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999;
+            display:none; align-items:center; justify-content:center;
+        }
+        .lightbox.active { display:flex; }
+        .lightbox-img {
+            max-width:95vw; max-height:90vh; object-fit:contain;
+            border-radius:8px;
+        }
+        .lightbox-close {
+            position:absolute; top:15px; right:20px; font-size:36px;
+            color:white; cursor:pointer; z-index:100001;
+        }
+        .lightbox-nav {
+            position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
+            color:white; font-size:14px; background:rgba(255,255,255,0.2);
+            padding:8px 20px; border-radius:20px;
+        }
+        
         /* Toast */
         .toast-container {
-            position: fixed;
-            top: 80px;
-            left: 50%; transform: translateX(-50%);
-            z-index: 99999;
+            position:fixed; top:80px; left:50%; transform:translateX(-50%);
+            z-index:99998;
         }
         .toast {
-            padding: 12px 24px;
-            border-radius: 25px;
-            color: white;
-            font-size: 14px;
-            font-weight: 500;
-            animation: fadeInUp 0.3s ease;
-            margin-bottom: 8px;
-            max-width: 90vw;
-            word-break: break-all;
+            padding:12px 24px; border-radius:25px; color:white;
+            font-size:14px; font-weight:500;
+            animation:fadeInUp 0.3s ease; margin-bottom:8px;
+            max-width:90vw; word-break:break-all;
         }
-        .toast.success { background: #34c759; }
-        .toast.error { background: #ff3b30; }
-        .toast.info { background: #0071e3; }
+        .toast.success { background:#34c759; }
+        .toast.error { background:#ff3b30; }
+        .toast.info { background:#0071e3; }
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            from{opacity:0;transform:translateX(-50%)translateY(-10px);}
+            to{opacity:1;transform:translateX(-50%)translateY(0);}
         }
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
+        @keyframes fadeOut { from{opacity:1;} to{opacity:0;} }
+        
+        /* Hidden file input */
+        #fileInput { display:none; }
     </style>
 </head>
 <body>
 
-<!-- 密碼界面 -->
+<!-- Password -->
 <div class="password-screen" id="passwordScreen">
     <div class="password-box">
         <h2>🔒 訪問受限</h2>
         <p>請輸入密碼以繼續</p>
-        <input type="password" id="passwordInput" class="password-input" placeholder="輸入密碼" maxlength="20" autocomplete="off">
+        <input type="password" id="passwordInput" class="password-input"
+               placeholder="輸入密碼" maxlength="20" autocomplete="off">
         <button class="password-btn" onclick="checkPassword()">進入</button>
         <div id="passwordError" class="password-error">密碼錯誤</div>
     </div>
 </div>
 
-<!-- 主頁面 -->
+<!-- Main -->
 <div id="mainContent" style="display:none;">
-    <!-- Header -->
     <div class="header">
-        <h1>SFS 送貨系統</h1>
+        <h1>📦 SFS 送貨系統 v11</h1>
         <div class="day-selector">
             <button class="day-btn active" data-day="wed">4/8</button>
             <button class="day-btn" data-day="thu">4/9</button>
             <button class="day-btn" data-day="fri">4/10</button>
         </div>
     </div>
-
+    
     <!-- Stats -->
     <div class="stats-row">
         <div class="stat-item"><div class="stat-num" id="completedCount" style="color:#34c759;">0</div><div class="stat-label">已完成</div></div>
         <div class="stat-item"><div class="stat-num" id="pendingCount" style="color:#ff9500;">0</div><div class="stat-label">未完成</div></div>
+        <div class="stat-item"><div class="stat-num" id="photoCount" style="color:#5856d6;">0</div><div class="stat-label">已拍照</div></div>
     </div>
-
+    
     <!-- Sync -->
     <div class="sync-section">
-        <button class="sync-btn sync-upload" id="uploadBtn" onclick="forceUpload()">⬆️ 上載數據</button>
-        <button class="sync-btn sync-download" id="downloadBtn" onclick="forceDownload()">⬇️ 下載數據</button>
-        <button class="sync-btn sync-reset" onclick="resetLocalData()">🔄 重置本地數據</button>
-        <div class="sync-status" id="syncStatus">等待同步</div>
+        <button class="sync-btn sync-upload" id="uploadBtn" onclick="forceUpload()">⬆️ 上載</button>
+        <button class="sync-btn sync-download" id="downloadBtn" onclick="forceDownload()">⬇️ 下載</button>
+        <button class="sync-btn sync-reset" onclick="resetLocalData()">🔄 重置</button>
     </div>
-
+    <div class="sync-status" id="syncStatus">等待同步</div>
+    
     <!-- Store List -->
     <div class="page active" id="pageList">
         <div class="store-list">
@@ -266,61 +275,77 @@
             <div id="list-fri" class="day-section"></div>
         </div>
     </div>
-
+    
     <!-- Completed Page -->
     <div class="page" id="pageCompleted">
         <div class="store-list">
-            <h3 style="margin-bottom:15px;color:#333;">已完成列表</h3>
+            <h3 style="margin-bottom:15px;color:#333;">✅ 已完成列表</h3>
             <div id="completedList"></div>
         </div>
     </div>
-
+    
+    <!-- Gallery Page -->
+    <div class="page" id="pageGallery">
+        <div class="store-list">
+            <h3 style="margin-bottom:15px;color:#333;">📷 圖片庫</h3>
+            <div id="galleryGrid" class="gallery-grid"></div>
+        </div>
+    </div>
+    
     <!-- Tab Bar -->
     <div class="tab-bar">
-        <button class="tab-item active" data-page="pageList" onclick="switchPage('pageList', this)">
+        <button class="tab-item active" data-page="pageList" onclick="switchPage('pageList',this)">
             <div class="tab-icon">📋</div><div>列表</div>
         </button>
-        <button class="tab-item" data-page="pageCompleted" onclick="switchPage('pageCompleted', this)">
+        <button class="tab-item" data-page="pageCompleted" onclick="switchPage('pageCompleted',this)">
             <div class="tab-icon">✅</div><div>已完成</div>
+        </button>
+        <button class="tab-item" data-page="pageGallery" onclick="switchPage('pageGallery',this)">
+            <div class="tab-icon">📷</div><div>圖片庫</div>
         </button>
     </div>
 </div>
 
-<!-- Toast Container -->
+<!-- Hidden File Input -->
+<input type="file" id="fileInput" accept="image/*" capture="environment">
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+    <img class="lightbox-img" id="lightboxImg" src="">
+    <div class="lightbox-nav" id="lightboxNav"></div>
+</div>
+
+<!-- Toast -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-// ===== 密碼保護 =====
+// ===== 密碼 =====
 const ACCESS_PASSWORD = "CS1908";
 
-function isPasswordVerified() {
-    return sessionStorage.getItem('sfsVerified') === 'true';
-}
+function isPasswordVerified() { return sessionStorage.getItem('sfsVerified') === 'true'; }
 
 async function checkPassword() {
     const input = document.getElementById('passwordInput').value.trim();
-    
     if (input === ACCESS_PASSWORD) {
         sessionStorage.setItem('sfsVerified', 'true');
         document.getElementById('passwordScreen').classList.add('hidden');
         document.getElementById('mainContent').style.display = 'block';
         document.getElementById('passwordError').style.display = 'none';
-        
-        // 初始化
-        init();
+        await init();
     } else {
         document.getElementById('passwordError').style.display = 'block';
         document.getElementById('passwordInput').value = '';
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('passwordInput').addEventListener('keypress', e => {
         if (e.key === 'Enter') checkPassword();
     });
 });
 
-window.addEventListener('load', function() {
+window.addEventListener('load', () => {
     if (isPasswordVerified()) {
         document.getElementById('passwordScreen').classList.add('hidden');
         document.getElementById('mainContent').style.display = 'block';
@@ -347,13 +372,19 @@ const originalData = {
     ]
 };
 
-const dayMap = { wed:'4/8', thu:'4/9', fri:'4/10' };
-
 let completedStores = {};
+let imageCache = {}; // { storeKey: [base64,...] }
 let isFirebaseReady = false;
 let firebaseDB;
+let currentImgKey = null;
 
-// ===== Firebase 初始化 =====
+// IndexedDB
+let dbInstance = null;
+const DB_NAME = 'SFS_Delivery_v11';
+const DB_VERSION = 1;
+const STORE_NAME = 'images';
+
+// ===== Firebase =====
 function initFirebase() {
     try {
         firebase.initializeApp({
@@ -364,33 +395,189 @@ function initFirebase() {
         });
         firebaseDB = firebase.database();
         isFirebaseReady = true;
-        console.log('[Firebase] ✅ 初始化成功');
-    } catch (e) {
-        console.error('[Firebase] ❌ 初始化失敗:', e);
+        console.log('[Firebase] ✅ OK');
+    } catch(e) {
+        console.error('[Firebase] ❌', e);
         isFirebaseReady = false;
     }
 }
 
-// ===== 工具函數：安全鍵名（Firebase 不能包含 /） =====
-function makeSafeKey(day, storeId) {
-    return `${day}-${storeId}`;
+// ===== 工具函數 =====
+function makeSafeKey(day, storeId) { return `${day}-${storeId}`; }
+
+// ===== IndexedDB 操作 =====
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = e => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: ['storeKey', 'imageId'] });
+            }
+        };
+        req.onsuccess = e => { dbInstance = e.target.result; resolve(dbInstance); };
+        req.onerror = e => reject(e.target.error);
+    });
 }
 
-// ===== 本地存儲 =====
-function loadStores() {
+async function saveImageToDB(storeKey, imageId, imageData) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put({ storeKey, imageId, imageData, time: Date.now() });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function getImagesFromDB(storeKey) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_NAME], 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const idx = store.index('storeKey') || null;
+        
+        let results = [];
+        if (idx) {
+            const req = idx.getAll(storeKey);
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        } else {
+            // Fallback: scan all
+            const req = store.getAll();
+            req.onsuccess = () => {
+                const all = req.result || [];
+                resolve(all.filter(r => r.storeKey === storeKey));
+            };
+            req.onerror = () => reject(req.error);
+        }
+    });
+}
+
+async function deleteImageFromDB(storeKey, imageId) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.delete([storeKey, imageId]);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function clearAllImagesFromDB() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+// ===== LocalStorage =====
+function loadAllData() {
     try {
-        const data = localStorage.getItem('sfsCompletedStores_v2');
-        completedStores = data ? JSON.parse(data) : {};
-        console.log('[Local] 已加載', Object.keys(completedStores).length, '條記錄');
-    } catch (e) {
-        completedStores = {};
-    }
+        const s = localStorage.getItem('sfsV11_stores');
+        completedStores = s ? JSON.parse(s) : {};
+        const img = localStorage.getItem('sfsV11_imgKeys');
+        const savedKeys = img ? JSON.parse(img) : {};
+        
+        console.log('[Load] Stores:', Object.keys(completedStores).length, ', ImgKeys:', Object.keys(savedKeys).length);
+    } catch(e) { completedStores = {}; imageCache = {}; }
 }
 
-function saveStores() {
-    localStorage.setItem('sfsCompletedStores_v2', JSON.stringify(completedStores));
-    console.log('[Local] 已保存', Object.keys(completedStores).length, '條記錄');
+function saveStoresData() {
+    localStorage.setItem('sfsV11_stores', JSON.stringify(completedStores));
 }
+
+function saveImageKey(key) {
+    // 記錄哪些 key 有圖片（用於統計）
+    const data = JSON.parse(localStorage.getItem('sfsV11_imgKeys') || '{}');
+    data[key] = true;
+    localStorage.setItem('sfsV11_imgKeys', JSON.stringify(data));
+}
+
+// ===== 圖片處理 =====
+function compressImage(file, maxSizeKB = 300) {
+    return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                let w = img.width, h = img.height;
+                const maxDim = 1200;
+                if (w > maxDim || h > maxDim) {
+                    const ratio = Math.min(maxDim/w, maxDim/h);
+                    w *= ratio; h *= ratio;
+                }
+                canvas.width = w; canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                
+                let quality = 0.8;
+                let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                
+                // 壓縮至目標大小
+                while (dataUrl.length / 1024 > maxSizeKB && quality > 0.1) {
+                    quality -= 0.1;
+                    dataUrl = canvas.toDataURL('image/jpeg', quality);
+                }
+                
+                resolve(dataUrl);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function triggerFileUpload(storeKey) {
+    currentImgKey = storeKey;
+    document.getElementById('fileInput').click();
+}
+
+document.getElementById('fileInput').addEventListener('change', async e => {
+    const files = e.target.files;
+    if (!files.length || !currentImgKey) return;
+    
+    const key = currentImgKey;
+    const existingImgs = imageCache[key] || [];
+    
+    if (existingImgs.length >= 2) {
+        showToast('❌ 每間店舖最多2張圖', 'error');
+        e.target.value = '';
+        currentImgKey = null;
+        return;
+    }
+    
+    for (let i = 0; i < Math.min(files.length, 2 - existingImgs.length); i++) {
+        showToast('📷 處理中...', 'info');
+        const compressed = await compressImage(files[i]);
+        const imgId = Date.now().toString(36) + '_' + i + '_' + Math.random().toString(36).substr(2,4);
+        
+        // Save to IndexedDB
+        await saveImageToDB(key, imgId, compressed);
+        
+        // Update cache
+        if (!imageCache[key]) imageCache[key] = [];
+        imageCache[key].push({ id: imgId, data: compressed });
+        
+        saveImageKey(key);
+    }
+    
+    e.target.value = '';
+    currentImgKey = null;
+    
+    renderStoreList();
+    updateStats();
+    showToast('✅ 圖片已保存', 'success');
+    console.log('[Image] Saved for:', key, 'Count:', imageCache[key]?.length || 0);
+});
 
 // ===== 渲染 =====
 function renderStoreList() {
@@ -399,15 +586,33 @@ function renderStoreList() {
         listEl.innerHTML = stores.map(store => {
             const key = makeSafeKey(dayKey, store.id);
             const isCompleted = !!completedStores[key];
+            const imgs = imageCache[key] || [];
+            
             return `
-                <div class="store-card ${isCompleted ? 'completed' : ''}">
-                    <div class="store-info">
-                        <div class="store-id">${store.id}</div>
+                <div class="store-card ${isCompleted?'completed':''}">
+                    <div class="store-top">
+                        <div class="store-info">
+                            <div class="store-id">${store.id}</div>
+                        </div>
+                        <button class="complete-btn ${isCompleted?'completed':''}"
+                                onclick="toggleComplete('${dayKey}','${store.id}')">
+                            ${isCompleted?'✓':''}
+                        </button>
                     </div>
-                    <button class="complete-btn ${isCompleted ? 'completed' : ''}" 
-                            onclick="toggleComplete('${dayKey}', '${store.id}')">
-                        ${isCompleted ? '✓' : ''}
-                    </button>
+                    ${isCompleted ? `
+                        <div class="img-section">
+                            <div class="img-label">📷 拍照記錄 (${imgs.length}/2)</div>
+                            <div class="img-thumbs">
+                                ${imgs.map((img,i) =>
+                                    `<img class="img-thumb" src="${img.data}"
+                                         onclick="openLightbox('${key}',${i})"
+                                         alt="圖片${i+1}">`
+                                ).join('')}
+                                ${imgs.length < 2 ?
+                                    `<div class="img-add-btn" onclick="triggerFileUpload('${key}')">+</div>` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>`;
         }).join('');
     }
@@ -421,20 +626,42 @@ function renderCompletedList() {
         .map(([key, data]) => {
             const time = new Date(data.time).toLocaleString('zh-TW');
             const lastDash = key.lastIndexOf('-');
-            const storeId = key.substring(lastDash + 1);
+            const storeId = key.substring(lastDash+1);
+            const imgCount = (imageCache[key]||[]).length;
             return `
-                <div class="store-card" style="margin-bottom:8px;">
-                    <div class="store-info">
-                        <div class="store-id">${storeId}</div>
-                        <div class="completed-time">${time}</div>
+                <div class="store-card">
+                    <div class="store-top">
+                        <div class="store-info">
+                            <div class="store-id">${storeId}
+                                ${imgCount > 0 ? `<span class="completed-img-count">📷${imgCount}</span>` : ''}
+                            </div>
+                            <div class="completed-time">${time}</div>
+                        </div>
                     </div>
                 </div>`;
         }).join('');
     listEl.innerHTML = items || '<p style="text-align:center;padding:40px;color:#999;">尚無已完成項目</p>';
 }
 
+function renderGallery() {
+    const gridEl = document.getElementById('galleryGrid');
+    let items = [];
+    for (const [key, imgs] of Object.entries(imageCache)) {
+        imgs.forEach((img, idx) => {
+            items.push({ key, idx, data: img.data, time: img.time || 0 });
+        });
+    }
+    items.sort((a,b) => b.time - a.time);
+    
+    gridEl.innerHTML = items.length ? items.map(item =>
+        `<div class="gallery-item" onclick="openLightbox('${item.key}',${item.idx})">
+             <img src="${item.data}" alt="照片">
+         </div>`
+    ).join('') : '<p style="grid-column:1/-1;text-align:center;padding:40px;color:#999;">尚無圖片</p>';
+}
+
 function updateStats() {
-    let completed = 0, pending = 0;
+    let completed=0, pending=0, photos=0;
     for (const [dayKey, stores] of Object.entries(originalData)) {
         for (const s of stores) {
             const key = makeSafeKey(dayKey, s.id);
@@ -442,156 +669,218 @@ function updateStats() {
             else pending++;
         }
     }
+    for (const imgs of Object.values(imageCache)) { photos += imgs.length; }
+    
     document.getElementById('completedCount').textContent = completed;
     document.getElementById('pendingCount').textContent = pending;
+    document.getElementById('photoCount').textContent = photos;
 }
 
 // ===== 操作 =====
 function toggleComplete(dayKey, storeId) {
     const key = makeSafeKey(dayKey, storeId);
-    if (completedStores[key]) {
-        delete completedStores[key];
-    } else {
-        completedStores[key] = { time: Date.now() };
-    }
-    saveStores();
+    if (completedStores[key]) delete completedStores[key];
+    else completedStores[key] = { time: Date.now() };
+    saveStoresData();
     renderStoreList();
     renderCompletedList();
 }
 
 function switchPage(pageId, btn) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
-    if (btn) btn.classList.add('active');
+    if(btn) btn.classList.add('active');
     
-    if (pageId === 'pageCompleted') renderCompletedList();
+    if(pageId==='pageCompleted') renderCompletedList();
+    if(pageId==='pageGallery') renderGallery();
 }
 
-// ===== 雲端同步 =====
-async function forceUpload() {
-    if (!isFirebaseReady) { showToast('❌ Firebase 未連接', 'error'); return; }
-    
-    const btn = document.getElementById('uploadBtn');
-    btn.textContent = '🔄 上載中...';
-    btn.disabled = true;
-    
-    try {
-        const payload = {
-            stores: completedStores,
-            timestamp: Date.now()
-        };
-        console.log('[Upload] 上載數據:', payload);
-        await firebaseDB.ref('deliveryData').set(payload);
-        showToast('✅ 上載成功！共 ' + Object.keys(completedStores).length + ' 條記錄', 'success');
-        document.getElementById('syncStatus').textContent = '✅ 上載完成 ' + new Date().toLocaleTimeString();
-    } catch (e) {
-        console.error('[Upload] 失敗:', e);
-        showToast('❌ 上載失敗: ' + e.message, 'error');
-    } finally {
-        btn.textContent = '⬆️ 上載數據';
-        btn.disabled = false;
-    }
-}
-
-async function forceDownload() {
-    if (!isFirebaseReady) { showToast('❌ Firebase 未連接', 'error'); return; }
-    
-    const btn = document.getElementById('downloadBtn');
-    btn.textContent = '🔄 下載中...';
-    btn.disabled = true;
-    
-    try {
-        const snapshot = await firebaseDB.ref('deliveryData').once('value');
-        const data = snapshot.val();
-        
-        if (data && data.stores) {
-            completedStores = { ...data.stores }; // 淺拷貝，覆蓋本地
-            saveStores();
-            renderStoreList();
-            renderCompletedList();
-            
-            const count = Object.keys(completedStores).length;
-            showToast('✅ 下載成功！共 ' + count + ' 條記錄', 'success');
-            document.getElementById('syncStatus').textContent = '✅ 下載完成 ' + new Date().toLocaleTimeString();
-        } else {
-            showToast('ℹ️ 雲端無數據', 'info');
-            document.getElementById('syncStatus').textContent = '⚠️ 雲端無數據';
-        }
-    } catch (e) {
-        console.error('[Download] 失敗:', e);
-        showToast('❌ 下載失敗: ' + e.message, 'error');
-    } finally {
-        btn.textContent = '⬇️ 下載數據';
-        btn.disabled = false;
-    }
-}
-
-// ===== 重置本地數據（帶密碼確認）=====
-async function resetLocalData() {
-    const input = prompt('⚠️ 此操作將清除所有本地數據！\n\n請輸入登入密碼以確認：');
-    
-    if (input === null) return; // 取消
-    
-    if (input !== ACCESS_PASSWORD) {
-        showToast('❌ 密碼錯誤', 'error');
-        return;
-    }
-    
-    if (!confirm('確定要清除以下數據嗎？\n\n• 已完成的店舖記錄\n• 所有本地緩存\n\n雲端數據不受影響。\n清除後請點擊「下載數據」重新獲取。')) {
-        return;
-    }
-    
-    // 清除本地
-    localStorage.removeItem('sfsCompletedStores_v2');
-    localStorage.removeItem('sfsVerified');
-    
-    // 重置變量
-    completedStores = {};
-    
-    // 更新 UI
-    renderStoreList();
-    renderCompletedList();
-    document.getElementById('syncStatus').textContent = '🔄 本地已重置';
-    
-    showToast('✅ 本地數據已清除', 'success');
-    console.log('[Reset] 本地數據已重置');
-}
-
-// ===== Toast 提示 =====
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'fadeOut 0.3s ease forwards';
-        setTimeout(() => toast.remove(), 300);
-    }, 2500);
-}
-
-// ===== Tab 切換 =====
-document.querySelectorAll('.day-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+document.querySelectorAll('.day-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));
         btn.classList.add('active');
-        document.querySelectorAll('.day-section').forEach(s => s.classList.remove('active'));
-        document.getElementById(`list-${btn.dataset.day}`).classList.add('active');
+        document.querySelectorAll('.day-section').forEach(s=>s.classList.remove('active'));
+        document.getElementById('list-'+btn.dataset.day).classList.add('active');
     });
 });
 
+// ===== Lightbox =====
+function openLightbox(storeKey, imgIdx) {
+    const imgs = imageCache[storeKey] || [];
+    if(!imgs[imgIdx]) return;
+    
+    document.getElementById('lightboxImg').src = imgs[imgIdx].data;
+    document.getElementById('lightboxNav').textContent = `${imgIdx+1}/${imgs.length}`;
+    document.getElementById('lightbox').classList.add('active');
+    
+    window._lbKey = storeKey;
+    window._lbIdx = imgIdx;
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('active');
+    window._lbKey = null;
+    window._lbIdx = null;
+}
+
+document.addEventListener('keydown', e => {
+    if(!window._lbKey) return;
+    const imgs = imageCache[window._lbKey]||[];
+    if(e.key==='ArrowRight'&&window._lbIdx<imgs.length-1) openLightbox(window._lbKey,window._lbIdx+1);
+    if(e.key==='ArrowLeft'&&window._lbIdx>0) openLightbox(window._lbKey,window._lbIdx-1);
+    if(e.key==='Escape') closeLightbox();
+});
+
+// ===== 雲端同步 =====
+async function forceUpload() {
+    if(!isFirebaseReady){showToast('❌ Firebase未連接','error');return;}
+    const btn=document.getElementById('uploadBtn');
+    btn.textContent='🔄 上載...';btn.disabled=true;
+    
+    try{
+        // 準備圖片數據（只上載小尺寸base64）
+        const imagesToUpload = {};
+        for(const[key,imgs]of Object.entries(imageCache)){
+            imagesToUpload[key]=imgs.map(img=>img.data);
+        }
+        
+        const payload={
+            stores:completedStores,
+            images:imagesToUpload,
+            timestamp:Date.now()
+        };
+        
+        // 估算大小
+        const sizeKB = JSON.stringify(payload).length/1024;
+        if(sizeKB>800){
+            showToast('⚠️ 數據過大('+Math.round(sizeKB)+'KB)，可能上載失敗','error');
+        }
+        
+        await firebaseDB.ref('deliveryData').set(payload);
+        const storeCnt=Object.keys(completedStores).length;
+        const imgCnt=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
+        showToast(`✅ 上載成功！${storeCnt}店 ${imgCnt}張圖`,'success');
+        document.getElementById('syncStatus').textContent='✅ 上載 '+new Date().toLocaleTimeString();
+    }catch(e){
+        console.error('[Upload]',e);
+        showToast('❌ 失敗:'+e.message,'error');
+    }finally{
+        btn.textContent='⬆️ 上載';btn.disabled=false;
+    }
+}
+
+async function forceDownload(){
+    if(!isFirebaseReady){showToast('❌ Firebase未連接','error');return;}
+    const btn=document.getElementById('downloadBtn');
+    btn.textContent='🔄 下載...';btn.disabled=true;
+    
+    try{
+        const snapshot=await firebaseDB.ref('deliveryData').once('value');
+        const data=snapshot.val();
+        
+        if(data&&data.stores){
+            // 覆蓋本地數據
+            completedStores={...data.stores};
+            saveStoresData();
+            
+            // 下載圖片
+            if(data.images){
+                imageCache={};
+                const imgKeyData={};
+                for(const[key,imgs]of Object.entries(data.images)){
+                    if(Array.isArray(imgs)&&imgs.length>0){
+                        imageCache[key]=imgs.map((d,i)=>({
+                            id:'dl_'+i+'_'+Date.now().toString(36),
+                            data:d,
+                            time:Date.now()
+                        }));
+                        
+                        // 同步到IndexedDB
+                        for(const img of imageCache[key]){
+                            try{
+                                await saveImageToDB(key,img.id,img.data);
+                            }catch(err){
+                                console.warn('[SyncImg] DB save err:',err);
+                            }
+                        }
+                        imgKeyData[key]=true;
+                    }
+                }
+                localStorage.setItem('sfsV11_imgKeys',JSON.stringify(imgKeyData));
+            }
+            
+            renderStoreList();renderCompletedList();updateStats();
+            const cnt=Object.keys(completedStores).length;
+            const imgCnt=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
+            showToast(`✅ 下載成功！${cnt}店 ${imgCnt}張圖`,'success');
+            document.getElementById('syncStatus').textContent='✅ 下載 '+new Date().toLocaleTimeString();
+        }else{
+            showToast('ℹ️ 雲端無數據','info');
+        }
+    }catch(e){
+        console.error('[Download]',e);
+        showToast('❌ 失敗:'+e.message,'error');
+    }finally{
+        btn.textContent='⬇️ 下載';btn.disabled=false;
+    }
+}
+
+// ===== 重置 =====
+async function resetLocalData(){
+    const input=prompt('⚠️ 清除所有本地數據\n請輸入密碼：');
+    if(input===null)return;
+    if(input!==ACCESS_PASSWORD){showToast('❌ 密碼錯誤','error');return;}
+    if(!confirm('確定清除？\n•已完成記錄\n•本地圖片緩存\n雲端不受影響'))return;
+    
+    localStorage.removeItem('sfsV11_stores');
+    localStorage.removeItem('sfsV11_imgKeys');
+    localStorage.removeItem('sfsVerified');
+    completedStores={};imageCache={};
+    await clearAllImagesFromDB();
+    
+    renderStoreList();renderCompletedList();renderGallery();updateStats();
+    document.getElementById('syncStatus').textContent='🔄 已重置';
+    showToast('✅ 本地已重置','success');
+}
+
+// ===== Toast =====
+function showToast(msg,type='info'){
+    const c=document.getElementById('toastContainer');
+    const t=document.createElement('div');
+    t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);
+    setTimeout(()=>{
+        t.style.animation='fadeOut 0.3s ease forwards';
+        setTimeout(()=>t.remove(),300);
+    },2500);
+}
+
 // ===== 初始化 =====
-function init() {
-    console.log('[Init] 開始初始化...');
+async function init(){
+    console.log('[Init] 開始...');
     initFirebase();
-    loadStores();
-    renderStoreList();
-    renderCompletedList();
-    console.log('[Init] ✅ 初始化完成');
+    
+    // 打開 IndexedDB
+    await openDB();
+    
+    // 加載本地數據
+    loadAllData();
+    
+    // 加載圖片到緩存
+    imageCache={};
+    const imgKeys=JSON.parse(localStorage.getItem('sfsV11_imgKeys')||'{}');
+    for(const key of Object.keys(imgKeys)){
+        try{
+            const imgs=await getImagesFromDB(key);
+            if(imgs&&imgs.length>0){
+                imageCache[key]=imgs.map(r=>({id:r.imageId,data:r.imageData,time:r.time}));
+            }
+        }catch(e){console.warn('[Init] Load img err for',key,e);}
+    }
+    
+    renderStoreList();renderCompletedList();renderGallery();updateStats();
+    console.log('[Init] ✅ 完成 - Stores:',Object.keys(completedStores).length,', Images:',Object.keys(imageCache).length);
 }
 </script>
-
 </body>
 </html>
