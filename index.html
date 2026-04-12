@@ -1754,21 +1754,32 @@
         // 驗證密碼
         async function checkPassword() {
             const input = document.getElementById('passwordInput').value;
+            console.log('[Password] 輸入:', input, '當前密碼:', ACCESS_PASSWORD, '已加載:', isPasswordLoaded);
             
             // 確保密碼已加載
             if (!isPasswordLoaded && isFirebaseReady) {
+                console.log('[Password] 等待加載密碼配置...');
                 await loadPasswordConfig();
+                console.log('[Password] 密碼配置加載完成:', ACCESS_PASSWORD);
             }
             
             if (input === ACCESS_PASSWORD) {
+                console.log('[Password] 密碼正確，進入系統');
                 sessionStorage.setItem('fanStandVerified', 'true');
                 sessionStorage.setItem('fanStandPasswordVersion', PASSWORD_VERSION.toString());
                 document.getElementById('passwordScreen').classList.add('hidden');
                 document.getElementById('passwordError').style.display = 'none';
                 
                 // 密碼正確後初始化頁面
-                await init();
+                try {
+                    await init();
+                    console.log('[Password] 初始化完成');
+                } catch (e) {
+                    console.error('[Password] 初始化失敗:', e);
+                    alert('頁面初始化失敗: ' + e.message);
+                }
             } else {
+                console.log('[Password] 密碼錯誤，輸入:', input, '期望:', ACCESS_PASSWORD);
                 document.getElementById('passwordError').style.display = 'block';
                 document.getElementById('passwordInput').value = '';
                 document.getElementById('passwordInput').focus();
@@ -1864,15 +1875,27 @@
 
         // 頁面加載時檢查密碼
         window.addEventListener('load', async function() {
+            console.log('[Password] 頁面載入，開始初始化...');
+            
             // 首先初始化 Firebase
             initFirebase();
+            console.log('[Password] Firebase 初始化調用完成，狀態:', isFirebaseReady);
             
             // 等待 Firebase 初始化完成
+            let attempts = 0;
+            const maxAttempts = 20; // 最多等待10秒
+            
             const checkFirebase = setInterval(async () => {
+                attempts++;
+                console.log('[Password] 檢查 Firebase 狀態 (嘗試 ' + attempts + '/' + maxAttempts + '):', isFirebaseReady);
+                
                 if (isFirebaseReady) {
                     clearInterval(checkFirebase);
+                    console.log('[Password] Firebase 就緒，加載密碼配置...');
                     await loadPasswordConfig();
                     listenPasswordChanges();
+                    
+                    console.log('[Password] 密碼加載完成:', ACCESS_PASSWORD);
                     
                     if (isPasswordVerified()) {
                         document.getElementById('passwordScreen').classList.add('hidden');
@@ -1880,14 +1903,12 @@
                     } else {
                         document.getElementById('passwordInput').focus();
                     }
-                }
-            }, 500);
-            
-            // 超時處理（5秒後 Firebase 仍未就緒）
-            setTimeout(() => {
-                clearInterval(checkFirebase);
-                if (!isPasswordLoaded) {
-                    console.warn('[Password] Firebase 未就緒，使用本地默認密碼');
+                } else if (attempts >= maxAttempts) {
+                    // 超時處理
+                    clearInterval(checkFirebase);
+                    console.warn('[Password] Firebase 未就緒，使用本地默認密碼:', ACCESS_PASSWORD);
+                    isPasswordLoaded = true; // 標記為已加載（使用默認值）
+                    
                     if (isPasswordVerified()) {
                         document.getElementById('passwordScreen').classList.add('hidden');
                         init();
@@ -1895,7 +1916,7 @@
                         document.getElementById('passwordInput').focus();
                     }
                 }
-            }, 5000);
+            }, 500);
         });
 
         // 監聽 Enter 鍵
