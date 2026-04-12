@@ -2165,22 +2165,53 @@
                     const data = snapshot.val();
                     if (!data) return;
                     
-                    // 合併商店數據
-                    if (data.stores) {
-                        for (const store of data.stores) {
-                            await saveStoreToLocal(store);
-                        }
+                    // 獲取雲端版本號
+                    const cloudVersion = data.version || 0;
+                    const localVersion = parseInt(localStorage.getItem('fanStandDataVersion') || '0');
+                    
+                    // 如果本地版本較新，不覆蓋本地數據
+                    if (localVersion > cloudVersion) {
+                        console.log('[Firebase] 本地版本較新，跳過雲端同步');
+                        return;
                     }
                     
-                    // 合併圖片數據
+                    // ===== 修復2: 正確合併商店數據（以時間戳為準） =====
+                    if (data.stores) {
+                        for (const store of data.stores) {
+                            if (store.key && store.time) {
+                                const localKey = store.key;
+                                const localTime = completedStores[localKey]?.time || 0;
+                                // 只有雲端數據較新時才更新
+                                if (store.time > localTime) {
+                                    completedStores[localKey] = { time: store.time };
+                                }
+                            }
+                        }
+                        localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
+                    }
+                    
+                    // ===== 修復2: 正確合併圖片數據 =====
                     if (data.images) {
                         for (const img of data.images) {
-                            await saveImageToLocal(img.storeKey, img.imageId, img.imageData);
+                            // 檢查圖片是否已存在
+                            const existingImages = await getImagesForStore(img.storeKey);
+                            const exists = existingImages.some(i => i.imageId === img.imageId);
+                            if (!exists) {
+                                await saveImageToLocal(img.storeKey, img.imageId, img.imageData);
+                            }
                         }
+                        // 重新加載圖片緩存
+                        await loadAllImageCache();
+                    }
+                    
+                    // 更新本地版本號
+                    if (cloudVersion > localVersion) {
+                        localStorage.setItem('fanStandDataVersion', cloudVersion.toString());
                     }
                     
                     console.log('[Firebase] 數據已從雲端同步');
                     renderAll(); // 重新渲染
+                    showToast('已同步雲端更新', 'success');
                 } catch (error) {
                     console.error('[Firebase] 接收數據失敗:', error);
                 }
@@ -2907,6 +2938,12 @@
                 // 保存成功後清除
                 currentImgKey = null;
                 pendingImageData = null;
+                
+                // ===== 修復1: 保存圖片後立即同步到雲端 =====
+                log('圖片保存成功，觸發雲端同步...');
+                setTimeout(() => {
+                    syncToCloud().catch(e => console.error('同步失敗:', e));
+                }, 500);
             } catch (err) {
                 console.error('保存失敗:', err);
                 alert('圖片保存失敗，請稍後再試');
@@ -3486,6 +3523,9 @@
                 completedStores[key].time = newTimestamp;
                 localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
                 
+                // ===== 修復3: 標記變更並觸發同步 =====
+                markAsChanged('stores', key);
+                
                 // 關閉彈窗
                 closeModal();
                 
@@ -3494,6 +3534,11 @@
                     renderCompletedPage();
                     setupTimeEditListeners();
                 }, 50);
+                
+                // 觸發同步到雲端
+                setTimeout(() => {
+                    syncToCloud().catch(e => console.error('同步失敗:', e));
+                }, 500);
             });
             
             // 點擊遮罩關閉
