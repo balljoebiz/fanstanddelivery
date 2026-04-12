@@ -2018,10 +2018,24 @@
                     imagesCount: Object.keys(localData.images).length
                 });
                 
-                // 直接上傳所有本地數據（簡化邏輯）
+                // 獲取雲端數據並合併
+                const cloudSnapshot = await firebaseDB.ref('deliveryData').once('value');
+                const cloudData = cloudSnapshot.val() || { stores: {}, images: {} };
+                
+                // 合併數據：本地優先（因為本地是最新編輯）
+                const mergedStores = { ...(cloudData.stores || {}), ...localData.stores };
+                const mergedImages = { ...(cloudData.images || {}), ...localData.images };
+                
+                console.log('[Firebase] 數據合併:', {
+                    cloudStores: Object.keys(cloudData.stores || {}).length,
+                    localStores: Object.keys(localData.stores).length,
+                    mergedStores: Object.keys(mergedStores).length
+                });
+                
+                // 上傳合併後的數據
                 const updates = {
-                    'deliveryData/stores': localData.stores,
-                    'deliveryData/images': localData.images,
+                    'deliveryData/stores': mergedStores,
+                    'deliveryData/images': mergedImages,
                     'deliveryData/lastSync': Date.now(),
                     'deliveryData/version': cloudVersion + 1
                 };
@@ -2138,15 +2152,18 @@
             if (!data) return;
             
             // 合併到本地（data.stores 是對象格式 {key: {time}, ...}）
+            // P0-修復：雲端數據覆蓋本地，確保下載的是最新數據
             if (data.stores) {
+                let storeCount = 0;
                 for (const [key, store] of Object.entries(data.stores)) {
                     if (store && store.time) {
-                        if (!completedStores[key] || completedStores[key].time < store.time) {
-                            completedStores[key] = { time: store.time };
-                        }
+                        // 直接使用雲端數據（下載模式以雲端為準）
+                        completedStores[key] = { time: store.time };
+                        storeCount++;
                     }
                 }
                 localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
+                console.log('[Sync] 下載商店數量:', storeCount);
             }
             
             // 合併圖片（data.images 是對象格式 {storeKey_imageId: {storeKey, imageId, imageData}, ...}）
@@ -2182,6 +2199,8 @@
             renderGalleryStoreList();
             updateStats();
             updateCompletedPageStats();
+            
+            showToast('下載完成，頁面已更新', 'success');
         }
         
         // 渲染所有頁面（兼容性函數）
