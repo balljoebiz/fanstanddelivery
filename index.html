@@ -780,41 +780,59 @@ async function forceDownload(){
         const data=snapshot.val();
         
         if(data&&data.stores){
-            // 覆蓋本地數據
+            // ===== 修復：完全覆蓋本地數據 =====
+            console.log('[Download] 開始下載...');
+            console.log('[Download] Cloud stores:', Object.keys(data.stores).length);
+            console.log('[Download] Cloud images:', data.images ? Object.keys(data.images).length : 0);
+            
+            // 1. 完全替換完成記錄
             completedStores={...data.stores};
             saveStoresData();
+            console.log('[Download] Stores replaced:', Object.keys(completedStores).length);
             
-            // 下載圖片
+            // 2. 處理圖片：先清除所有本地圖片，再從雲端重建
+            imageCache={};
+            const newImgKeys={};
+            
+            // 先清除 IndexedDB 中所有舊圖片
+            await clearAllImagesFromDB();
+            console.log('[Download] Cleared all local DB images');
+            
+            // 從雲端重建圖片
             if(data.images){
-                imageCache={};
-                const imgKeyData={};
+                let totalImgs=0;
                 for(const[key,imgs]of Object.entries(data.images)){
                     if(Array.isArray(imgs)&&imgs.length>0){
-                        imageCache[key]=imgs.map((d,i)=>({
-                            id:'dl_'+i+'_'+Date.now().toString(36),
-                            data:d,
-                            time:Date.now()
-                        }));
+                        imageCache[key]=imgs.map((d,i)=>{
+                            totalImgs++;
+                            return{
+                                id:'dl_'+i+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4),
+                                data:d,
+                                time:data.timestamp||Date.now()
+                            };
+                        });
                         
-                        // 同步到IndexedDB
+                        // 寫入 IndexedDB
                         for(const img of imageCache[key]){
-                            try{
-                                await saveImageToDB(key,img.id,img.data);
-                            }catch(err){
-                                console.warn('[SyncImg] DB save err:',err);
-                            }
+                            await saveImageToDB(key,img.id,img.data);
                         }
-                        imgKeyData[key]=true;
+                        newImgKeys[key]=true;
                     }
                 }
-                localStorage.setItem('sfsV11_imgKeys',JSON.stringify(imgKeyData));
+                localStorage.setItem('sfsV11_imgKeys',JSON.stringify(newImgKeys));
+                console.log('[Download] Images restored:', totalImgs);
             }
             
-            renderStoreList();renderCompletedList();updateStats();
-            const cnt=Object.keys(completedStores).length;
-            const imgCnt=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
-            showToast(`✅ 下載成功！${cnt}店 ${imgCnt}張圖`,'success');
-            document.getElementById('syncStatus').textContent='✅ 下載 '+new Date().toLocaleTimeString();
+            // 3. 強制刷新所有視圖
+            updateStats();
+            renderStoreList();
+            renderCompletedList();
+            renderGallery();
+            
+            const sCnt=Object.keys(completedStores).length;
+            const iCnt=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
+            showToast(`✅ 下載成功！${sCnt}間店 ${iCnt}張圖（已同步雲端）`,'success');
+            document.getElementById('syncStatus').textContent='✅ 已同步 '+new Date().toLocaleTimeString();
         }else{
             showToast('ℹ️ 雲端無數據','info');
         }
