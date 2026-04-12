@@ -2082,32 +2082,34 @@
         // 合併雲端數據
         async function mergeWithCloudData() {
             const cloudSnapshot = await firebaseDB.ref('deliveryData').once('value');
-            const cloudData = cloudSnapshot.val() || { stores: [], images: [] };
-            const localStores = await getAllStores();
+            const cloudData = cloudSnapshot.val() || { stores: {}, images: {} };
+            
+            // 獲取本地數據
+            const localStores = {};
+            for (const [key, value] of Object.entries(completedStores)) {
+                localStores[key] = value;
+            }
             const localImages = await getAllImages();
             
-            // 合併商店數據（以本地為主，但需要時可以添加合併邏輯）
-            const mergedStores = [...(cloudData.stores || [])];
-            localStores.forEach(localStore => {
-                const idx = mergedStores.findIndex(s => s.key === localStore.key);
-                if (idx >= 0) {
-                    // 保留較新的時間戳
-                    if (localStore.time > mergedStores[idx].time) {
-                        mergedStores[idx] = localStore;
-                    }
-                } else {
-                    mergedStores.push(localStore);
+            // 合併商店數據（對象格式）
+            const mergedStores = { ...(cloudData.stores || {}) };
+            for (const [key, localStore] of Object.entries(localStores)) {
+                if (!mergedStores[key] || localStore.time > mergedStores[key].time) {
+                    mergedStores[key] = localStore;
                 }
-            });
+            }
             
-            // 合併圖片數據
-            const mergedImages = [...(cloudData.images || [])];
+            // 合併圖片數據（對象格式 {storeKey_imageId: {storeKey, imageId, imageData}}）
+            const mergedImages = { ...(cloudData.images || {}) };
             localImages.forEach(localImg => {
-                const idx = mergedImages.findIndex(img => 
-                    img.storeKey === localImg.storeKey && img.imageId === localImg.imageId
-                );
-                if (idx < 0) {
-                    mergedImages.push(localImg);
+                const imageKey = `${localImg.storeKey}_${localImg.imageId}`;
+                if (!mergedImages[imageKey]) {
+                    mergedImages[imageKey] = {
+                        storeKey: localImg.storeKey,
+                        imageId: localImg.imageId,
+                        imageData: localImg.imageData,
+                        time: localImg.time || Date.now()
+                    };
                 }
             });
             
@@ -2120,22 +2122,24 @@
             const data = snapshot.val();
             if (!data) return;
             
-            // 合併到本地
+            // 合併到本地（data.stores 是對象格式 {key: {time}, ...}）
             if (data.stores) {
-                for (const store of data.stores) {
-                    if (store.key && store.time) {
-                        const localKey = store.key;
-                        if (!completedStores[localKey] || completedStores[localKey].time < store.time) {
-                            completedStores[localKey] = { time: store.time };
+                for (const [key, store] of Object.entries(data.stores)) {
+                    if (store && store.time) {
+                        if (!completedStores[key] || completedStores[key].time < store.time) {
+                            completedStores[key] = { time: store.time };
                         }
                     }
                 }
                 localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
             }
             
+            // 合併圖片（data.images 是對象格式 {storeKey_imageId: {storeKey, imageId, imageData}, ...}）
             if (data.images) {
-                for (const img of data.images) {
-                    await saveImageToLocal(img.storeKey, img.imageId, img.imageData);
+                for (const [imageKey, img] of Object.entries(data.images)) {
+                    if (img && img.storeKey && img.imageId && img.imageData) {
+                        await saveImageToLocal(img.storeKey, img.imageId, img.imageData);
+                    }
                 }
             }
             
