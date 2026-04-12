@@ -1986,17 +1986,18 @@
             }
         }
 
-        // 同步數據到雲端（增量同步）
+        // ===== P0-修復: 簡化同步邏輯 =====
+        // 統一同步函數 - 強制上傳所有本地數據
         async function syncToCloud() {
             if (!isFirebaseReady) {
                 showToast('雲端未連接', 'error');
                 return;
             }
             
-            // 防止頻繁同步（最少間隔 5 秒）
+            // 防止頻繁同步（最少間隔 3 秒）
             const now = Date.now();
             const lastSyncAttempt = parseInt(localStorage.getItem('fanStandLastSyncAttempt') || '0');
-            if (now - lastSyncAttempt < 5000) {
+            if (now - lastSyncAttempt < 3000) {
                 showToast('同步過於頻繁，請稍後再試', 'warning');
                 return;
             }
@@ -2005,32 +2006,22 @@
             updateSyncStatus('正在同步...');
             
             try {
-                // 只獲取變更的數據
-                const pendingChanges = getPendingChanges();
-                if (!pendingChanges.hasChanges) {
-                    showToast('沒有需要同步的變更', 'info');
-                    updateSyncStatus('已同步');
-                    return;
-                }
-                
                 // 獲取雲端當前版本
                 const cloudSnapshot = await firebaseDB.ref('deliveryData/version').once('value');
                 const cloudVersion = cloudSnapshot.val() || 0;
-                const localVersion = parseInt(localStorage.getItem('fanStandDataVersion') || '0');
                 
-                // 如果雲端版本較新，先拉取更新
-                if (cloudVersion > localVersion) {
-                    showToast('雲端有更新，先拉取數據...', 'info');
-                    await syncFromCloudOnce();
-                }
+                // 獲取所有本地數據（不上傳是否有標記）
+                const localData = await getAllLocalData();
                 
-                // 合併數據並更新
-                const mergedData = await mergeWithCloudData();
+                console.log('[Firebase] 準備同步:', {
+                    storesCount: Object.keys(localData.stores).length,
+                    imagesCount: Object.keys(localData.images).length
+                });
                 
-                // 使用 update 而非 set，避免覆蓋其他用戶數據
+                // 直接上傳所有本地數據（簡化邏輯）
                 const updates = {
-                    'deliveryData/stores': mergedData.stores,
-                    'deliveryData/images': mergedData.images,
+                    'deliveryData/stores': localData.stores,
+                    'deliveryData/images': localData.images,
                     'deliveryData/lastSync': Date.now(),
                     'deliveryData/version': cloudVersion + 1
                 };
@@ -2040,16 +2031,40 @@
                 // 更新本地版本號
                 localStorage.setItem('fanStandDataVersion', (cloudVersion + 1).toString());
                 localStorage.setItem('fanStandLastSync', Date.now().toString());
-                clearPendingChanges();
                 
                 showToast('同步成功', 'success');
                 updateSyncStatus('同步完成');
-                console.log('[Firebase] 增量同步成功');
+                console.log('[Firebase] 同步成功');
             } catch (error) {
                 console.error('[Firebase] 同步失敗:', error);
                 showToast('同步失敗: ' + error.message, 'error');
                 updateSyncStatus('同步失敗');
+                throw error;
             }
+        }
+        
+        // 獲取所有本地數據（統一格式）
+        async function getAllLocalData() {
+            // 獲取商店數據
+            const stores = {};
+            for (const [key, value] of Object.entries(completedStores)) {
+                stores[key] = { time: value.time };
+            }
+            
+            // 獲取圖片數據
+            const images = {};
+            const allImages = await getAllImages();
+            allImages.forEach(img => {
+                const imageKey = `${img.storeKey}_${img.imageId}`;
+                images[imageKey] = {
+                    storeKey: img.storeKey,
+                    imageId: img.imageId,
+                    imageData: img.imageData,
+                    time: img.time || Date.now()
+                };
+            });
+            
+            return { stores, images };
         }
 
         // 獲取待同步的變更
@@ -2136,16 +2151,30 @@
             
             // 合併圖片（data.images 是對象格式 {storeKey_imageId: {storeKey, imageId, imageData}, ...}）
             if (data.images) {
+                let imageCount = 0;
                 for (const [imageKey, img] of Object.entries(data.images)) {
                     if (img && img.storeKey && img.imageId && img.imageData) {
                         await saveImageToLocal(img.storeKey, img.imageId, img.imageData);
+                        // P0-3: 更新圖片緩存
+                        if (!imageCache[img.storeKey]) {
+                            imageCache[img.storeKey] = [];
+                        }
+                        // 避免重複添加
+                        if (!imageCache[img.storeKey].includes(img.imageData)) {
+                            imageCache[img.storeKey].push(img.imageData);
+                        }
+                        imageCount++;
                     }
                 }
+                console.log('[Sync] 下載圖片數量:', imageCount);
             }
             
             if (data.version) {
                 localStorage.setItem('fanStandDataVersion', data.version.toString());
             }
+            
+            // P0-3: 重新加載圖片緩存確保一致性
+            await loadAllImageCache();
             
             renderAll();
         }
@@ -2249,7 +2278,7 @@
             });
         }
 
-        // 強制上載數據到雲端
+        // 強制上載數據到雲端（強制模式，不上傳所有本地數據）
         async function forceUpload() {
             const uploadBtn = document.getElementById('uploadBtn');
             const originalText = uploadBtn ? uploadBtn.innerHTML : '⬆️ 上載數據';
@@ -2264,7 +2293,7 @@
             
             try {
                 showToast('正在上載數據...', 'info');
-                await syncToCloud();
+                await syncToCloudForce();
                 showToast('上載完成', 'success');
                 updateSyncStatus('上載完成');
             } catch (error) {
@@ -2280,6 +2309,63 @@
                         uploadBtn.style.opacity = '1';
                     }
                 }, 1000);
+            }
+        }
+
+        // 強制同步所有數據到雲端（不檢查 pendingChanges）
+        async function syncToCloudForce() {
+            if (!isFirebaseReady) {
+                showToast('雲端未連接', 'error');
+                return;
+            }
+            
+            // 防止頻繁同步（最少間隔 3 秒）
+            const now = Date.now();
+            const lastSyncAttempt = parseInt(localStorage.getItem('fanStandLastSyncAttempt') || '0');
+            if (now - lastSyncAttempt < 3000) {
+                showToast('同步過於頻繁，請稍後再試', 'warning');
+                return;
+            }
+            localStorage.setItem('fanStandLastSyncAttempt', now.toString());
+            
+            updateSyncStatus('正在強制上載所有數據...');
+            
+            try {
+                // 獲取雲端當前版本
+                const cloudSnapshot = await firebaseDB.ref('deliveryData/version').once('value');
+                const cloudVersion = cloudSnapshot.val() || 0;
+                
+                // 強制合併所有本地數據（不上傳是否有 pendingChanges）
+                const mergedData = await mergeWithCloudData();
+                
+                console.log('[Firebase] 強制上載數據:', {
+                    storesCount: Object.keys(mergedData.stores).length,
+                    imagesCount: Object.keys(mergedData.images).length
+                });
+                
+                // 使用 update 而非 set，避免覆蓋其他用戶數據
+                const updates = {
+                    'deliveryData/stores': mergedData.stores,
+                    'deliveryData/images': mergedData.images,
+                    'deliveryData/lastSync': Date.now(),
+                    'deliveryData/version': cloudVersion + 1
+                };
+                
+                await firebaseDB.ref().update(updates);
+                
+                // 更新本地版本號
+                localStorage.setItem('fanStandDataVersion', (cloudVersion + 1).toString());
+                localStorage.setItem('fanStandLastSync', Date.now().toString());
+                clearPendingChanges();
+                
+                showToast('強制上載成功', 'success');
+                updateSyncStatus('上載完成');
+                console.log('[Firebase] 強制上載成功');
+            } catch (error) {
+                console.error('[Firebase] 強制上載失敗:', error);
+                showToast('上載失敗: ' + error.message, 'error');
+                updateSyncStatus('上載失敗');
+                throw error;
             }
         }
 
@@ -2523,9 +2609,33 @@
             localStorage.setItem('fanStandCompleted', JSON.stringify(completedStores));
         }
 
-        // 保存圖片到本地
+        // 保存圖片到本地（直接保存，不壓縮）
         async function saveImageToLocal(storeKey, imageId, imageData) {
-            return saveImage(storeKey, imageId, imageData);
+            log('直接保存圖片到本地:', storeKey, imageId);
+            
+            // 等待 IndexedDB 準備好
+            if (!db) {
+                await initDB();
+            }
+            
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.put({ 
+                    storeKey, 
+                    imageId, 
+                    imageData: imageData,  // 直接使用傳入的數據，不壓縮
+                    time: Date.now() 
+                });
+                request.onsuccess = () => {
+                    log('圖片直接保存成功:', imageId);
+                    resolve(imageId);
+                };
+                request.onerror = () => {
+                    err('圖片直接保存失敗', request.error);
+                    reject(request.error);
+                };
+            });
         }
 
         // ===== 人員分配 =====
