@@ -1,736 +1,570 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SFS 送貨系統 v14</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <title>Small Fan Stand 送貨路線</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; color:#333; overflow-x:hidden; }
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+        body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Helvetica Neue,sans-serif;background:#f5f5f7;color:#1d1d1f;min-height:100vh;-webkit-font-smoothing:antialiased;}
+        .container{max-width:768px;margin:0 auto;padding:20px 16px 100px;}
+
+        /* ===== Header（v05風格：居中大標題） ===== */
+        .header{text-align:center;padding:40px 0 24px;}
+        .header h1{font-size:26px;font-weight:600;letter-spacing:-0.5px;}
+        .header p{font-size:14px;color:#86868b;margin-top:6px;}
+
+        /* ===== Day Tab Cards（v05：卡片式，陰影+圓角） ===== */
+        .day-selector{display:flex;gap:8px;padding:0 4px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+        .day-btn{flex:0 0 auto;min-width:70px;padding:10px 12px;border:none;border-radius:12px;background:#fff;cursor:pointer;text-align:center;transition:all 0.3s cubic-bezier(.4,0,.2,1);box-shadow:0 2px 8px rgba(0,0,0,.08);}
+        .day-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.12);}
+        .day-btn.active{background:#0071e3;color:#fff;box-shadow:0 4px 16px rgba(0,113,227,.4);}
+        .day-btn .db-date{font-size:11px;opacity:.7;margin-bottom:1px;}
+        .day-btn.active .db-date{opacity:.85;}
+        .day-btn .db-day{font-size:13px;font-weight:600;margin-bottom:3px;}
+        .day-btn .db-count{font-size:17px;font-weight:700;}
+        .day-btn.raymond{background:linear-gradient(135deg,#ff9500,#ff5e3a);color:#fff;}
+        .day-btn.raymond.active{background:#fff;color:#ff9500;}
+
+        /* ===== Overall Stats（v05：彩色頂邊框） ===== */
+        .overall-stats{display:flex;gap:12px;padding:0 4px;margin-bottom:16px;}
+        .overall-stat{flex:1;background:#fff;border-radius:14px;padding:14px 12px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+        .overall-stat.done{border-top:4px solid #34c759;}
+        .overall-stat.todo{border-top:4px solid #ff9500;}
+        .os-label{font-size:11px;color:#86868b;margin-bottom:4px;}
+        .os-value{font-size:28px;font-weight:700;line-height:1;}
+        .os-sub{font-size:11px;color:#86868b;margin-top:2px;}
+        .overall-stat.done .os-value{color:#34c759;} .overall-stat.todo .os-value{color:#ff9500;}
+
+        /* ===== Day Stats ===== */
+        .day-stats{display:flex;gap:12px;padding:0 4px;margin-bottom:18px;}
+        .day-stat{flex:1;background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+        .day-stat.ds-done{border-left:4px solid #34c759;}
+        .day-stat.ds-todo{border-left:4px solid #ff9500;}
+        .ds-label{font-size:11px;color:#86868b;margin-bottom:4px;}
+        .ds-value{font-size:24px;font-weight:700;line-height:1;}
+        .day-stat.ds-done .ds-value{color:#34c759;} .day-stat.ds-todo .ds-value{color:#ff9500;}
+
+        /* ===== Sync Bar ===== */
+        .sync-bar{display:flex;gap:8px;padding:0 4px;margin-bottom:18px;flex-wrap:wrap;}
+        .sync-btn{flex:1;min-width:72px;padding:12px 8px;border:none;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.25s;}
+        .sb-up{background:linear-gradient(135deg,#007aff,#5856d6);color:white;}
+        .sb-down{background:#5856d6;color:white;}
+        .sb-reset{background:linear-gradient(135deg,#ff6b6b,#ee5a52);color:white;}
+        .sb-exp{background:linear-gradient(135deg,#34c759,#30d158);color:white;}
+        .sync-msg{text-align:center;font-size:12px;color:#aaa;padding:4px;}
+
+        /* ===== Store Card（v05風格） ===== */
+        .store-list{} /* no extra wrapper */
+        .store-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;
+            box-shadow:0 2px 12px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:12px;transition:all 0.3s;animation:cardFadeIn .3s ease-out;}
+        .store-card.completed{opacity:.65;background:#fafafa;}
+        @keyframes cardFadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+        /* Checkbox */
+        .cb-wrap{flex:0 0 26px;height:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+        .checkbox{width:24px;height:24px;border:2px solid #d1d1d6;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;background:#fff;}
+        .checkbox.checked{background:#34c759;border-color:#34c759;}
+        .checkbox.checked::after{content:'✓';color:#fff;font-size:13px;font-weight:bold;}
+
+        /* Content */
+        .sc-body{flex:1;min-width:0;}
+        .sc-header-row{display:flex;align-items:center;gap:10px;margin-bottom:5px;}
+        /* Seq Badge (purple gradient) */
+        .seq-badge{width:38px;height:38px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600;flex-shrink:0;}
+        .store-info{flex:1;min-width:0;}
+        .store-id{font-size:16px;font-weight:600;color:#1d1d1f;}
+        .store-meta{display:flex;gap:6px;margin-top:3px;flex-wrap:wrap;}
+        .day-badge-sm{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:500;background:#f0f0f5;color:#636366;}
+        .dj-badge{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:500;background:#e3f2fd;color:#007aff;cursor:pointer;}
+        .staff-badge{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:500;background:#fff3e0;color:#ff9500;}
+        .store-addr{font-size:12px;color:#555;line-height:1.4;margin-top:4px;word-break:break-word;}
+
+        /* Image Row in card */
+        .sc-img-row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+        .sc-thumb-w{position:relative;flex-shrink:0;}
+        .sc-thumb{width:54px;height:54px;border-radius:8px;object-fit:cover;cursor:pointer;border:1.5px solid #e5e5ea;transition:transform 0.15s;}
+        .sc-thumb:hover{transform:scale(1.08);}
+        .sc-thumb-del{position:absolute;top:-5px;right:-5px;width:17px;height:17px;background:#ff3b30;color:white;border-radius:50%;border:none;font-size:9px;display:flex;align-items:center;justify-content:center;z-index:3;cursor:pointer;line-height:1;opacity:0;transition:opacity 0.2s;}
+        .sc-thumb-w:hover .sc-thumb-del{opacity:1;}
+        .sc-add-small{width:54px;height:54px;border-radius:8px;border:2px dashed #007aff;background:#f0f8ff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#007aff;flex-shrink:0;transition:all 0.2s;}
+        .sc-add-small:hover{background:#e3f2fd;}
+        .sc-time-line{margin-top:5px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+        .sc-time-txt{font-size:12px;color:#34c759;font-weight:500;cursor:pointer;padding:2px 7px;border-radius:6px;transition:background 0.2s;}
+        .sc-time-txt:hover{background:rgba(52,199,89,.12);}
+
+        /* Right thumb preview */
+        .sc-right-thumb{width:56px;height:56px;border-radius:10px;overflow:hidden;background:#f8f9fa;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+        .sc-right-thumb img{width:100%;height:100%;object-fit:cover;}
+        .no-img-icon{font-size:22px;color:#ddd;}
+
+        /* ===== Completed Page（表格式） ===== */
+        .completed-header{padding:18px 0 10px;}
+        .completed-header h2{font-size:22px;font-weight:600;}
+        .comp-table{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+        .ct-head{display:flex;background:#f5f5f7;padding:12px 16px;font-size:12px;font-weight:600;color:#86868b;border-bottom:1px solid #e5e5e5;}
+        .ct-col-time{width:105px;}
+        .ct-col-store{flex:1;text-align:center;}
+        .ct-col-img{width:60px;text-align:center;}
+        .ct-row{display:flex;padding:12px 16px;border-bottom:1px solid #f0f0f0;align-items:center;}
+        .ct-row:last-child{border-bottom:none;}
+        .ct-r-time{width:105px;font-size:13px;color:#34c759;font-weight:500;cursor:pointer;padding:3px 8px;border-radius:6px;}
+        .ct-r-store{flex:1;font-size:14px;color:#1d1d1f;text-align:center;}
+        .ct-r-img{width:60px;display:flex;justify-content:center;align-items:center;gap:4px;}
+        .ct-empty{text-align:center;padding:40px;color:#aaa;font-size:14px;}
+
+        /* ===== Gallery Page ===== */
+        .gallery-header{display:flex;align-items:center;justify-content:space-between;padding:16px 0 10px;}
+        .gallery-header h2{font-size:22px;font-weight:600;}
+        /* Store filter tabs */
+        .gal-store-tabs{display:flex;gap:6px;padding:0 4px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+        .gst-btn{flex:0 0 auto;padding:7px 14px;border:none;border-radius:18px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.07);white-space:nowrap;}
+        .gst-btn.active{background:#007aff;color:#fff;}
+        .gst-btn.has-img::after{content:'';position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:#34c759;border-radius:50%;border:2px solid #fff;}
+        .gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:3px;}
+        .gal-item{aspect-ratio:1;cursor:pointer;overflow:hidden;position:relative;}
+        .gal-item img{width:100%;height:100%;object-fit:cover;transition:transform 0.25s;}
+        .gal-item:hover img{transform:scale(1.04);}
+        .gal-del-overlay{position:absolute;inset:0;background:rgba(255,59,48,.7);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;z-index:2;pointer-events:auto;font-size:26px;color:white;}
+        .gal-hint{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:9px;color:rgba(255,255,255,.65);z-index:3;pointer-events:none;}
+
+        /* ===== Tab Bar（毛玻璃效果） ===== */
+        .tab-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+            border-top:.5px solid rgba(0,0,0,.1);display:flex;justify-content:center;padding:7px 0;padding-bottom:max(7px,env(safe-area-inset-bottom));z-index:200;}
+        .tab-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:7px 20px;border:none;background:none;cursor:pointer;transition:opacity 0.2s;}
+        .tab-item .ticon{font-size:23px;margin-bottom:3px;}
+        .tab-item span{font-size:10px;color:#86868b;font-weight:500;}
+        .tab-item.active span{color:#0071e3;}
+        .page{display:none;}
+        .page.active{display:block;}
 
         /* ===== Password Screen ===== */
-        .password-screen { position:fixed; inset:0; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); display:flex; align-items:center; justify-content:center; z-index:9999; }
-        .password-screen.hidden { display:none; }
-        .password-box { background:white; padding:40px 30px; border-radius:20px; text-align:center; width:90%; max-width:350px; }
-        .password-box h2 { margin-bottom:10px; color:#333; }
-        .password-box p { color:#666; margin-bottom:20px; font-size:14px; }
-        .password-input { width:100%; padding:14px; border:2px solid #e0e0e0; border-radius:10px; font-size:18px; text-align:center; margin-bottom:15px; letter-spacing:4px; }
-        .password-input:focus { border-color:#667eea; outline:none; }
-        .password-btn { width:100%; padding:14px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; }
-        .password-error { color:#ff3b30; font-size:14px; margin-top:10px; display:none; }
-        .pwd-change-link { color:#667eea; font-size:13px; margin-top:16px; cursor:pointer; text-decoration:underline; display:inline-block;padding:4px 8px; }
+        .pwd-screen{position:fixed;inset:0;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;z-index:9999;}
+        .pwd-screen.hidden{display:none;}
+        .pwd-box{background:#fff;padding:38px 28px;border-radius:20px;text-align:center;width:88%;max-width:340px;}
+        .pwd-box h2{margin-bottom:8px;color:#333;}
+        .pwd-box p{color:#666;margin-bottom:18px;font-size:14px;}
+        .pwd-input{width:100%;padding:13px;border:2px solid #e0e0e0;border-radius:10px;font-size:18px;text-align:center;margin-bottom:14px;letter-spacing:4px;}
+        .pwd-input:focus{border-color:#667eea;outline:none;}
+        .pwd-btn{width:100%;padding:13px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;}
+        .pwd-err{color:#ff3b30;font-size:13px;margin-top:10px;display:none;}
+        .pwd-chg-link{color:#667eea;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline;display:inline-block;padding:3px 6px;}
 
-        /* ===== Change Password（全屏）===== */
-        .chgpwd-screen { position:fixed; inset:0; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); display:none; align-items:center; justify-content:center; z-index:99999; }
-        .chgpwd-screen.active { display:flex; animation:fadeInUp 0.3s ease; }
-        .chgpwd-box { background:white; padding:40px 30px; border-radius:20px; text-align:center; width:90%; max-width:350px; }
-        .chgpwd-title { font-size:18px; font-weight:600; margin-bottom:20px; color:#333; }
-        .chgpwd-input { width:100%; padding:12px 14px; border:2px solid #e0e0e0; border-radius:10px; font-size:16px; margin-bottom:12px; text-align:center; letter-spacing:4px; }
-        .chgpwd-btn { width:100%; padding:14px; background:#34c759; color:white; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; margin-top:8px; }
-        .chgpwd-error { color:#ff3b30; font-size:13px; margin-top:12px; display:none; }
-        .chgpwd-back { color:#667eea; font-size:13px; margin-top:16px; cursor:pointer; text-decoration:underline; display:inline-block;padding:4px 8px; }
+        /* Change Pwd */
+        .chg-screen{position:fixed;inset:0;background:linear-gradient(135deg,#667eea,#764ba2);display:none;align-items:center;justify-content:center;z-index:99999;}
+        .chg-screen.active{display:flex;animation:fadeInUp .3s ease;}
+        .chg-box{background:#fff;padding:38px 28px;border-radius:20px;text-align:center;width:88%;max-width:340px;}
+        .chg-title{font-size:17px;font-weight:600;margin-bottom:18px;color:#333;}
+        .chg-inp{width:100%;padding:12px 14px;border:2px solid #e0e0e0;border-radius:10px;font-size:16px;margin-bottom:11px;text-align:center;letter-spacing:4px;}
+        .chg-btn{width:100%;padding:13px;background:#34c759;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:7px;}
+        .chg-err{color:#ff3b30;font-size:12px;margin-top:11px;display:none;}
+        .chg-back{color:#667eea;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline;display:inline-block;padding:3px 6px;}
 
-        /* ===== Main Header（圖5風格） ===== */
-        .app-header { background:#fff; padding:18px 16px 14px; position:sticky; top:0; z-index:100; box-shadow:0 1px 6px rgba(0,0,0,0.08); }
-        .app-title-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
-        .app-title { font-size:22px; font-weight:700; color:#222; }
-        .app-subtitle { font-size:13px; color:#888; margin-top:2px; }
+        /* Image Modal (Bottom Sheet style) */
+        .img-modal{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99997;display:none;align-items:flex-end;}
+        .img-modal.show{display:flex;}
+        .img-modal-c{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;animation:slideUp .3s ease-out;}
+        @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+        .img-m-title{font-size:16px;font-weight:600;text-align:center;margin-bottom:16px;padding-bottom:13px;border-bottom:1px solid #e5e5ea;}
+        .img-m-btn{width:100%;padding:15px;border:none;border-radius:12px;font-size:15px;font-weight:500;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.2s;}
+        .img-m-btn.photo{background:#007aff;color:#fff;}
+        .img-m-btn.gallery{background:#f5f5f7;color:#1d1d1f;}
+        .img-m-btn.cancel{background:#f5f5f7;color:#ff3b30;margin-bottom:0;}
+        #fileInput,#galleryFileInput{display:none;}
 
-        /* Date Badge */
-        .date-badge { background:linear-gradient(135deg,#ff9500,#ff6b00); color:white; padding:5px 11px; border-radius:14px; font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; }
+        /* Lightbox */
+        .lb{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column;}
+        .lb.active{display:flex;}
+        .lb-close{position:absolute;top:18px;right:20px;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:100001;line-height:1;}
+        .lb-del{position:absolute;top:18px;left:20px;background:rgba(255,59,48,.8);color:#fff;border:none;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;z-index:100001;}
+        .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:100001;}
+        .lb-nav.p{left:16px;}.lb-nav.n{right:16px;}
+        .lb-img{max-width:92%;max-height:78vh;object-fit:contain;border-radius:8px;transition:transform 0.2s ease;cursor:zoom-in;touch-action:none;will-change:transform;}
+        .lb-z{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:100001;}
+        .lb-zbtn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+        .lb-ctr{position:absolute;bottom:28px;color:#fff;font-size:14px;z-index:100001;}
 
-        /* Day Tabs（帶完成率） */
-        .day-tabs { display:flex; gap:6px; margin-top:12px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
-        .day-tabs::-webkit-scrollbar{display:none;}
-        .day-tab { padding:8px 12px; border:2px solid #e0e0e0; border-radius:12px; background:white; cursor:pointer; white-space:nowrap; transition:all 0.25s; min-width:fit-content; text-align:left; }
-        .day-tab .dt-date { font-size:12px; font-weight:700; color:#333; }
-        .day-tab .dt-day { font-size:10px; color:#888; }
-        .day-tab .dt-count { font-size:11px; color:#0071e3; font-weight:600; margin-top:1px; }
-        .day-tab.active { border-color:#0071e3; background:#f0f8ff; }
-        .day-tab.active .dt-date { color:#0071e3; }
-
-        /* Stats Grid（4格，參照圖5） */
-        .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:12px 16px; }
-        .stat-box { background:white; border-radius:14px; padding:14px 12px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-        .stat-label { font-size:11px; color:#888; margin-bottom:4px; }
-        .stat-num-row { display:flex; align-items:baseline; justify-content:center; gap:3px; }
-        .stat-num-big { font-size:28px; font-weight:800; line-height:1; }
-        .stat-num-small { font-size:13px; color:#999; font-weight:500; }
-        .sb-green .stat-num-big { color:#34c759; }
-        .sb-orange .stat-num-big { color:#ff9500; }
-        .sb-blue .stat-num-big { color:#0071e3; }
-
-        /* Sync Buttons */
-        .sync-bar { display:flex; gap:8px; padding:0 16px 12px; flex-wrap:wrap; }
-        .sync-btn { flex:1; min-width:80px; padding:12px 6px; border:none; border-radius:12px; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; }
-        .btn-upload { background:#0071e3;color:white; } .btn-download { background:#5856d6;color:white; }
-        .btn-reset { background:#ff6b6b;color:white; } .btn-export { background:#34c759;color:white; }
-        .sync-msg { text-align:center; font-size:12px;color:#aaa;padding:4px 16px 10px; clear:both; }
-
-        /* ===== Store Card（圖5風格：左-中-右佈局） ===== */
-        .store-list { padding:8px 16px 90px; }
-        .store-card { background:white; border-radius:14px; padding:12px; margin-bottom:10px;
-            display:flex; align-items:flex-start; gap:10px;
-            box-shadow:0 2px 8px rgba(0,0,0,0.07); transition:all 0.2s; }
-        .store-card.completed { opacity:0.85; }
-
-        /* Left: 序號+✓+店號 */
-        .sc-left { display:flex; align-items:center; gap:6px; flex-shrink:0; min-width:70px; }
-        .sc-check { width:26px;height:26px;border-radius:50%;border:2.5px solid #ddd;background:#fff;
-            display:flex;align-items:center;justify-content:center;font-size:14px;color:white;cursor:pointer;flex-shrink:0;transition:all 0.3s; }
-        .sc-check.done { background:#34c759;border-color:#34c759; }
-        .sc-id { font-size:17px;font-weight:700;color:#0071e3;white-space:nowrap;flex-shrink:0;min-width:48px;text-align:right;}
-
-        /* Middle: 日期標籤 + 地址 */
-        .sc-mid { flex:1; min-width:0; }
-        .sc-day-tag { display:inline-flex; align-items:center; gap:4px;
-            background:#f0f0f5; padding:2px 8px; border-radius:8px; font-size:10px; color:#888;margin-bottom:4px; }
-        .sc-dj-btn { background:#5856d6;color:white;border:none;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:600;cursor:pointer;line-height:1.4; }
-        .sc-addr { font-size:12px; color:#555; line-height:1.35; word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
-        .sc-time-row { display:flex;align-items:center;gap:4px;margin-top:4px; }
-        .sc-time { font-size:11px;color:#34c759;font-weight:500;cursor:pointer;padding:2px 6px;border-radius:6px;transition:background 0.2s; }
-        .sc-time:hover { background:#f0f9ff; }
-
-        /* Right: 縮略圖 */
-        .sc-right { flex-shrink:0; width:56px; height:56px; border-radius:10px; overflow:hidden; background:#f8f9fa;
-            display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer; }
-        .sc-right img { width:100%;height:100%;object-fit:cover; }
-        .sc-no-img { font-size:24px;color:#ddd; }
-        .sc-img-del { position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:#ff3b30;
-            color:white;border-radius:50%;border:none;font-size:10px;display:flex;align-items:center;justify-content:center;
-            opacity:0;transition:opacity 0.2s;z-index:2;cursor:pointer;line-height:1;padding:0;}
-        .sc-right:hover .sc-img-del { opacity:1; }
-
-        /* 圖片縮略圖行（平排顯示） */
-        .sc-img-row { display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:nowrap;}
-        .sc-thumb { width:60px;height:60px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid transparent;transition:all 0.15s;flex-shrink:0; }
-        .sc-thumb:hover { transform:scale(1.06);border-color:#0071e3; }
-        .sc-thumb-wrap { position:relative; }
-        .sc-thumb-del { position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:#ff3b30;color:white;border-radius:50%;
-            border:none;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;line-height:1;
-            box-shadow:0 2px 4px rgba(0,0,0,0.3); }
-
-        /* ===== Tab Bar ===== */
-        .tab-bar { position:fixed;bottom:0;left:0;right:0;background:white;display:flex;
-            box-shadow:0 -2px 10px rgba(0,0,0,0.08);z-index:200; }
-        .tab-item { flex:1;padding:10px 0;text-align:center;cursor:pointer;border:none;background:transparent;color:#999;font-size:10px;transition:all 0.2s; }
-        .tab-item.active { color:#0071e3; }
-        .tab-icon { font-size:20px;display:block;margin-bottom:2px; }
-        .page { display:none; padding-bottom:70px; }
-        .page.active { display:block; }
-
-        /* Completed Page（卡片列表） */
-        .completed-list { padding:8px 16px 80px; }
-        .comp-card { background:white;border-radius:14px;padding:12px;margin-bottom:10px;
-            display:flex;align-items:flex-start;gap:10px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
-            animation:fadeInUp 0.3s ease; }
-        .cc-left { flex-shrink:0; }
-        .cc-check { width:28px;height:28px;border-radius:50%;background:#34c759;color:white;
-            display:flex;align-items:center;justify-content:center;font-size:15px; }
-        .cc-info { flex:1;min-width:0; }
-        .cc-id { font-size:17px;font-weight:700;color:#333; }
-        .cc-meta { display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap; }
-        .cc-day { font-size:11px;color:#888;background:#f0f0f5;padding:1px 6px;border-radius:6px; }
-        .cc-time { font-size:12px;color:#34c759;font-weight:500;cursor:pointer;padding:2px 6px;border-radius:6px; }
-        .cc-addr { font-size:11px;color:#777;margin-top:3px;line-height:1.3;word-break:break-all; }
-        .cc-img-wrap { width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f5f5f5;
-            display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-        .cc-img-wrap img { width:100%;height:100%;object-fit:cover; }
-        .cc-img-n { font-size:20px;color:#ddd; }
-        .cc-empty { text-align:center;padding:40px;color:#aaa;font-size:14px; }
-
-        /* Gallery Page - 點擊預覽，長按刪除 */
-        .gallery-page { padding:8px 16px 80px; }
-        .gallery-header { font-size:16px;font-weight:600;color:#333;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
-        .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-        .gal-item { aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;position:relative;
-            touch-action:none;-webkit-tap-highlight-color:transparent; }
-        .gal-item img { width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;-webkit-user-drag:none; }
-        /* 刪除overlay只在長按或顯示時出現 */
-        .gal-del-overlay { position:absolute;inset:0;background:rgba(255,59,48,0.7);
-            display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;
-            font-size:28px;color:white;z-index:2;pointer-events:auto;}
-        .gal-del-overlay.show { opacity:1; }
-
-        /* Image Modal（拍照 / 相冊） */
-        .img-modal { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99997;display:none;align-items:center;justify-content:center; }
-        .img-modal.show { display:flex; }
-        .img-modal-c { background:white;border-radius:18px;padding:24px;width:85%;max-width:300px;text-align:center; }
-        .img-modal-t { font-size:17px;font-weight:600;margin-bottom:16px;color:#333; }
-        .img-modal-b { width:100%;padding:16px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;transition:all 0.2s; }
-        .img-modal-b.photo { background:#0071e3;color:white; }
-        .img-modal-b.gallery { background:#5856d6;color:white; }
-        .img-modal-b.cancel { background:#f0f0f5;color:#333; }
-        #fileInput,#galleryFileInput { display:none; }
-
-        /* Lightbox with Zoom */
-        .lightbox { position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column; }
-        .lightbox.active { display:flex; }
-        .lb-close { position:absolute;top:15px;right:20px;font-size:36px;color:white;cursor:pointer;z-index:100001;
-            background:rgba(0,0,0,0.3);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1; }
-        .lb-img { max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;transition:transform 0.2s ease;cursor:zoom-in;
-            touch-action:none;will-change:transform; }
-        .lb-nav { position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;
-            background:rgba(255,255,255,0.2);border:none;color:white;font-size:26px;cursor:pointer;display:flex;
-            align-items:center;justify-content:center;z-index:100001; }
-        .lb-nav.prev { left:15px; } .lb-nav.next { right:15px; }
-        .lb-counter { position:absolute;bottom:30px;color:white;font-size:14px;z-index:100001; }
-        .lb-zoom { position:absolute;bottom:80px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:100001; }
-        .lb-zoom-btn { width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:white;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center; }
-        .lb-delete { position:absolute;top:15px;left:20px;background:rgba(255,59,48,0.8);color:white;border:none;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;z-index:100001; }
-
-        /* Time Edit Modal */
-        .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99997;display:none;align-items:center;justify-content:center; }
-        .modal-overlay.show { display:flex; }
-        .modal-box { background:white;border-radius:16px;padding:24px;width:90%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,0.3); }
-        .modal-title { font-size:17px;font-weight:600;margin-bottom:16px;text-align:center; }
-        .modal-input { width:100%;padding:14px;border:2px solid #e0e0e0;border-radius:10px;font-size:18px;text-align:center;margin-bottom:16px; }
-        .modal-input:focus { border-color:#0071e3;outline:none; }
-        .modal-actions { display:flex;gap:10px; }
-        .modal-btn { flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer; }
-        .modal-cancel { background:#f0f0f5;color:#333; } .modal-save { background:#0071e3;color:white; }
+        /* Time Modal */
+        .tm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99997;display:none;align-items:center;justify-content:center;}
+        .tm-overlay.show{display:flex;}
+        .tm-box{background:#fff;border-radius:16px;padding:24px;width:90%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.25);}
+        .tm-title{font-size:16px;font-weight:600;margin-bottom:16px;text-align:center;}
+        .tm-inp{width:100%;padding:13px;border:2px solid #e0e0e0;border-radius:10px;font-size:18px;text-align:center;margin-bottom:16px;}
+        .tm-inp:focus{border-color:#0071e3;outline:none;}
+        .tm-actions{display:flex;gap:10px;}
+        .tm-btn{flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;}
+        .tm-cancel{background:#f0f0f5;color:#333;}.tm-save{background:#0071e3;color:#fff;}
 
         /* Confirm Dialog */
-        .confirm-dialog { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99998;display:none;align-items:center;justify-content:center; }
-        .confirm-dialog.show { display:flex; }
-        .confirm-box { background:white;border-radius:16px;padding:24px;width:85%;max-width:320px;text-align:center; }
-        .confirm-msg { font-size:15px;margin-bottom:20px;line-height:1.5; }
-        .confirm-btns { display:flex;gap:10px; }
-        .confirm-btns button { flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer; }
-        .confirm-yes { background:#ff3b30;color:white; } .confirm-no { background:#e0e0e0;color:#333; }
+        .cf-dialog{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99998;display:none;align-items:center;justify-content:center;}
+        .cf-dialog.show{display:flex;}
+        .cf-box{background:#fff;border-radius:16px;padding:24px;width:86%;max-width:320px;text-align:center;}
+        .cf-msg{font-size:15px;margin-bottom:18px;line-height:1.5;}
+        .cf-btns{display:flex;gap:10px;}
+        .cf-btns button{flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;}
+        .cf-y{background:#ff3b30;color:#fff;}.cf-n{background:#e0e0e0;color:#333;}
 
         /* Toast */
-        .toast-container { position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99998; }
-        .toast { padding:12px 24px;border-radius:25px;color:white;font-size:14px;font-weight:500;
-            animation:fadeInUp 0.3s ease;margin-bottom:8px;max-width:90vw;word-break:break-all; }
-        .toast.success { background:#34c759; } .toast.error { background:#ff3b30; } .toast.info { background:#0071e3; }
-        @keyframes fadeInUp { from{opacity:0;transform:translateX(-50%)translateY(-10px);} to{opacity:1;transform:translateX(-50%)translateY(0);} }
+        .toast-c{position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:99998;}
+        .toast{padding:11px 22px;border-radius:24px;color:#fff;font-size:13px;font-weight:500;animation:tfadeIn .3s ease;margin-bottom:7px;max-width:90vw;word-break:break-all;}
+        .toast.success{background:#34c759;}.toast.error{background:#ff3b30;}.toast.info{background:#0071e3;}
+        @keyframes tfadeIn{from{opacity:0;transform:translateX(-50%)translateY(-10px);}to{opacity:1;transform:translateX(-50%)translateY(0);}}
 
-        /* Photo Count Badge */
-        .photo-badge { background:#ff9500;color:white;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px;font-weight:600; }
+        .pb-count{background:#ff9500;color:#fff;font-size:9px;padding:1px 5px;border-radius:7px;margin-left:3px;font-weight:600;}
     </style>
 </head>
 <body>
 
 <!-- ===== Password ===== -->
-<div class="password-screen" id="passwordScreen">
-    <div class="password-box">
-        <h2>🔒 訪問受限</h2><p>請輸入密碼以繼續</p>
-        <input type="password" id="passwordInput" class="password-input" placeholder="輸入密碼" maxlength="20" autocomplete="off">
-        <button class="password-btn" onclick="checkPassword()">進入</button>
-        <div id="passwordError" class="password-error">密碼錯誤</div>
-        <div class="pwd-change-link" onclick="openChangePassword()">修改密碼</div>
-    </div>
-</div>
+<div class="pwd-screen" id="pwdScreen">
+    <div class="pwd-box"><h2>🔒 訪問受限</h2><p>請輸入密碼以繼續</p>
+    <input type="password" id="pwdInput" class="pwd-input" placeholder="輸入密碼" maxlength="20" autocomplete="off">
+    <button class="pwd-btn" onclick="checkPwd()">進入</button>
+    <div id="pwdErr" class="pwd-err">密碼錯誤</div>
+    <div class="pwd-chg-link" onclick="openChgPwd()">修改密碼</div></div></div>
 
-<!-- ===== Change Password ===== -->
-<div class="chgpwd-screen" id="changePwdScreen">
-    <div class="chgpwd-box">
-        <div class="chgpwd-title">🔐 修改密碼</div>
-        <input type="password" id="oldPwdInput" class="chgpwd-input" placeholder="舊密碼" maxlength="20" autocomplete="off">
-        <input type="password" id="newPwdInput" class="chgpwd-input" placeholder="新密碼（至少4位）" maxlength="20" autocomplete="off">
-        <button class="chgpwd-btn" onclick="doChangePassword()">確認修改</button>
-        <div id="chgPwdError" class="chgpwd-error"></div>
-        <div class="chgpwd-back" onclick="closeChangePassword()">← 返回登入</div>
-    </div>
-</div>
+<!-- Change Pwd -->
+<div class="chg-screen" id="chgScreen"><div class="chg-box">
+    <div class="chg-title">🔐 修改密碼</div>
+    <input type="password" id="oldPwdI" class="chg-inp" placeholder="舊密碼" maxlength="20" autocomplete="off">
+    <input type="password" id="newPwdI" class="chg-inp" placeholder="新密碼（至少4位）" maxlength="20" autocomplete="off">
+    <button class="chg-btn" onclick="doChgPwd()">確認修改</button>
+    <div id="chgErr" class="chg-err"></div>
+    <div class="chg-back" onclick="closeChgPwd()">← 返回登入</div>
+</div></div>
 
-<!-- ===== Main Content ===== -->
-<div id="mainContent" style="display:none;">
-    <!-- Header -->
-    <div class="app-header">
-        <div class="app-title-row">
-            <div>
-                <div class="app-title">Small Fan Stand</div>
-                <div class="app-subtitle">送貨總覽頁</div>
+<!-- Main -->
+<div id="mainC" style="display:none;">
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📦 Small Fan Stand 送貨路線</h1>
+            <p id="todayDate"></p>
+        </div>
+
+        <!-- Day Selector -->
+        <div class="day-selector" id="dayTabs"></div>
+
+        <!-- Overall Stats -->
+        <div class="overall-stats">
+            <div class="overall-stat done"><div class="os-label">已完成</div>
+                <div class="os-value" id="ovDone">0</div><div class="os-sub">項目</div></div>
+            <div class="overall-stat todo"><div class="os-label">尚未完成</div>
+                <div class="os-value" id="ovTodo">0</div><div class="os-sub">項目</div></div>
+        </div>
+
+        <!-- Day Stats -->
+        <div class="day-stats">
+            <div class="day-stat ds-done"><div class="ds-label">當日已完成</div><div class="ds-value" id="dsDone">0</div></div>
+            <div class="day-stat ds-todo"><div class="ds-label">當日未完成</div><div class="ds-value" id="dsTodo">0</div></div>
+        </div>
+
+        <!-- Sync -->
+        <div class="sync-bar">
+            <button class="sync-btn sb-up" onclick="forceUpload()">⬆ 上載</button>
+            <button class="sync-btn sb-down" onclick="forceDownload()">⬇ 下載</button>
+            <button class="sync-btn sb-reset" onclick="resetLocal()">🔄 重置</button>
+            <button class="sync-btn sb-exp" onclick="exportReport()">📄 報告</button>
+        </div>
+        <div class="sync-msg" id="syncMsg">等待同步</div>
+    </div>
+
+    <!-- List Page -->
+    <div class="page active" id="pgList">
+        <div class="container"><div class="store-list" id="listContainer"></div></div>
+    </div>
+
+    <!-- Completed Page -->
+    <div class="page" id="pgCompleted">
+        <div class="container">
+            <div class="completed-header"><h2>✅ 已完成列表</h2></div>
+            <div class="comp-table" id="compTable">
+                <div class="ct-head"><span class="ct-col-time">完成時間</span><span class="ct-col-store">店號</span><span class="ct-col-img">照片</span></div>
+                <div id="compRows"><div class="ct-empty">尚無已完成項目</div></div>
             </div>
-            <div class="date-badge" id="todayBadge">--/--</div>
-        </div>
-        <!-- Day Tabs -->
-        <div class="day-tabs" id="dayTabs"></div>
-    </div>
-
-    <!-- Stats Grid (4格) -->
-    <div class="stats-grid">
-        <div class="stat-box sb-green"><div class="stat-label">已完成</div>
-            <div class="stat-num-row"><span class="stat-num-big" id="stDone">0</span><span class="stat-num-small" id="stDoneTotal">/60</span></div></div>
-        <div class="stat-box sb-orange"><div class="stat-label">尚未完成</div>
-            <div class="stat-num-row"><span class="stat-num-big" id="stTodo">0</span><span class="stat-num-small" id="stTodoTotal">/60</span></div></div>
-        <div class="stat-box sb-blue"><div class="stat-label">當日已完成</div>
-            <div class="stat-num-row"><span class="stat-num-big" id="stDayDone">0</span></div></div>
-        <div class="stat-box"><div class="stat-label">當日未完成</div>
-            <div class="stat-num-row"><span class="stat-num-big" style="color:#ff9500;" id="stDayTodo">0</span></div></div>
-    </div>
-
-    <!-- Sync -->
-    <div class="sync-bar">
-        <button class="sync-btn btn-upload" onclick="forceUpload()">⬆ 上載</button>
-        <button class="sync-btn btn-download" onclick="forceDownload()">⬇ 下載</button>
-        <button class="sync-btn btn-reset" onclick="resetLocalData()">🔄 重置</button>
-        <button class="sync-btn btn-export" onclick="exportReport()">📄 報告</button>
-    </div>
-    <div class="sync-msg" id="syncMsg">等待同步</div>
-
-    <!-- Page: List -->
-    <div class="page active" id="pageList">
-        <div class="store-list" id="listContainer"></div>
-    </div>
-
-    <!-- Page: Completed -->
-    <div class="page" id="pageCompleted">
-        <div class="completed-list" id="completedList">
-            <div class="cc-empty">尚無已完成項目</div>
         </div>
     </div>
 
-    <!-- Page: Gallery -->
-    <div class="page" id="pageGallery">
-        <div class="gallery-page">
-            <div class="gallery-header">📷 圖片庫（點擊預覽）</div>
-            <div class="gallery-grid" id="galleryGrid"></div>
+    <!-- Gallery Page -->
+    <div class="page" id="pgGallery">
+        <div class="container">
+            <div class="gallery-header"><h2>📷 圖片庫</h2></div>
+            <div class="gal-store-tabs" id="galTabs"></div>
+            <div class="gal-grid" id="galGrid"></div>
         </div>
     </div>
 
     <!-- Tab Bar -->
     <div class="tab-bar">
-        <button class="tab-item active" data-pg="pageList" onclick="switchPage('pageList',this)"><span class="tab-icon">📋</span>列表</button>
-        <button class="tab-item" data-pg="pageCompleted" onclick="switchPage('pageCompleted',this)"><span class="tab-icon">✅</span>已完成</button>
-        <button class="tab-item" data-pg="pageGallery" onclick="switchPage('pageGallery',this)"><span class="tab-icon">📷</span>圖片庫</button>
+        <button class="tab-item active" data-pg="pgList" onclick="swPg('pgList',this)"><span class="ticon">📋</span><span>列表</span></button>
+        <button class="tab-item" data-pg="pgCompleted" onclick="swPg('pgCompleted',this)"><span class="ticon">✅</span><span>已完成</span></button>
+        <button class="tab-item" data-pg="pgGallery" onclick="swPg('pgGallery',this)"><span class="ticon">📷</span><span>圖片庫</span></button>
     </div>
 </div>
 
-<!-- Image Add Modal -->
+<!-- Image Modal (Bottom Sheet) -->
 <div class="img-modal" id="imgModal">
     <div class="img-modal-c">
-        <div class="img-modal-t" id="imgModalT">添加圖片</div>
-        <button class="img-modal-b photo" onclick="takePhoto()">📷 立即拍攝</button>
-        <button class="img-modal-b gallery" onclick="chooseFromGallery()">🖼️ 從相冊選擇</button>
-        <button class="img-modal-b cancel" onclick="closeImgModal()">取消</button>
+        <div class="img-m-title" id="imTitle">添加圖片</div>
+        <button class="img-m-btn photo" onclick="takePhoto()">📸 立即拍攝</button>
+        <button class="img-m-btn gallery" onclick="chooseGal()">🖼️ 從相冊選擇</button>
+        <button class="img-m-btn cancel" onclick="closeImModal()">取消</button>
     </div>
 </div>
 <input type="file" id="fileInput" accept="image/*" capture="environment">
 <input type="file" id="galleryFileInput" accept="image/*">
 
 <!-- Lightbox -->
-<div class="lightbox" id="lightbox">
-    <button class="lb-delete" id="lbDelBtn" onclick="deleteLightboxImage()">🗑️ 刪除</button>
-    <span class="lb-close" onclick="closeLightbox()">&times;</span>
-    <button class="lb-nav prev" id="lbPrev" onclick="lbNav(-1)">‹</button>
+<div class="lb" id="lb">
+    <button class="lb-del" id="lbDelBtn" onclick="delLbImg()">🗑️ 刪除</button>
+    <span class="lb-close" onclick="closeLb()">&times;</span>
+    <button class="lb-nav p" id="lbPrev" onclick="lbNav(-1)">‹</button>
     <img class="lb-img" id="lbImg" src="" onclick="toggleZoom()">
-    <button class="lb-nav next" id="lbNext" onclick="lbNav(1)">›</button>
-    <div class="lb-zoom"><button class="lb-zoom-btn" onclick="zoomIn()">+</button><button class="lb-zoom-btn" onclick="zoomOut()">−</button><button class="lb-zoom-btn" onclick="resetZoom()">⟲</button></div>
-    <div class="lb-counter" id="lbCounter">1/1</div>
+    <button class="lb-nav n" id="lbNext" onclick="lbNav(1)">›</button>
+    <div class="lb-z"><button class="lb-zbtn" onclick="zoomIn()">+</button><button class="lb-zbtn" onclick="zoomOut()">−</button><button class="lb-zbtn" onclick="resetZoom()">⟲</button></div>
+    <div class="lb-ctr" id="lbCtr">1/1</div>
 </div>
 
 <!-- Time Modal -->
-<div class="modal-overlay" id="timeModal">
-    <div class="modal-box">
-        <div class="modal-title">📝 修改完成時間</div>
-        <input type="datetime-local" class="modal-input" id="timeModalInput">
-        <div class="modal-actions">
-            <button class="modal-btn modal-cancel" onclick="closeTimeModal()">取消</button>
-            <button class="modal-btn modal-save" onclick="saveTimeEdit()">保存</button>
-        </div>
+<div class="tm-overlay" id="tmOverlay">
+    <div class="tm-box">
+        <div class="tm-title">📝 修改完成時間</div>
+        <input type="datetime-local" class="tm-inp" id="tmInput">
+        <div class="tm-actions"><button class="tm-btn tm-cancel" onclick="closeTm()">取消</button><button class="tm-btn tm-save" onclick="saveTmEdit()">保存</button></div>
     </div>
 </div>
 
 <!-- Confirm Dialog -->
-<div class="confirm-dialog" id="confirmDialog">
-    <div class="confirm-box">
-        <div class="confirm-msg" id="confirmMsg">確定？</div>
-        <div class="confirm-btns">
-            <button class="confirm-no" onclick="closeConfirm()">取消</button>
-            <button class="confirm-yes" id="confYesBtn">確定刪除</button>
-        </div>
-    </div>
+<div class="cf-dialog" id="cfDialog">
+    <div class="cf-box"><div class="cf-msg" id="cfMsg">確定？</div>
+    <div class="cf-btns"><button class="cf-n" onclick="closeCf()">取消</button><button class="cf-y" id="cfYesBtn">確定刪除</button></div></div>
 </div>
-<div class="toast-container" id="toastContainer"></div>
+<div class="toast-c" id="toastC"></div>
 
 <script>
 // ============================================================
-// ===== 完整店舖數據（4天52間） =====
-// ============================================================
+// ===== DATA =====
 const originalData = {
-    wed: [
-        { seq: 1, id: '4090', addr: '九龍美孚新邨萬事達廣場地下 N58, N65-N68 號舖' },
-        { seq: 2, id: '4760', addr: '九龍旺角山東街 47-51 號中僑商業大廈 2-3 號舖' },
-        { seq: 3, id: '4770', addr: '九龍西洋菜街南街13-19號好望角大廈地下4號舖及地庫B2舖' },
-        { seq: 4, id: '4780', addr: '九龍旺角彌敦道 664 號惠豐中心地下 4-6 號舖' },
-        { seq: 5, id: '4910', addr: '九龍奧海城 2 期高層地下 UG05B 及 UG06A 舖' },
-        { seq: 6, id: '4660', addr: '九龍彌敦道 143-161 號栢麗購物大道B 區及 C 區地下 G49-G50 號舖及 1樓21-2' },
-        { seq: 7, id: '4830', addr: '九龍深水埗欽州街西九龍中心 5 樓 501A 號舖' },
-        { seq: 8, id: '4810', addr: '九龍深水埗深旺道28號 V Walk 2樓 L2-53 & L2-55號舖' },
-        { seq: 9, id: '4970', addr: '九龍深水埗福華街 146/152號黃金電腦商場50號舖' },
-        { seq: 10, id: '4860', addr: '九龍黃埔花園第十二期家居庭地庫B3號舖' },
-        { seq: 11, id: '4750', addr: '九龍旺角 Moko 4 樓 420 號舖' },
-        { seq: 12, id: '4920', addr: '九龍柯士甸道西一號圓方一樓1050B號舖' },
-        { seq: 13, id: '4130', addr: '九龍尖沙咀海洋中心 3 樓333A, 333B, 335-7 號舖' },
-        { seq: 14, id: '4690', addr: '九龍又一城 MTR 層 01 號舖' }
-    ],
-    thu: [
-        { seq: 1, id: '2430', addr: '香港德輔道西 396 號華明中心地下後座' },
-        { seq: 2, id: '2580', addr: '香港莊士敦道141-147號鴻江大廈地庫及地下C號舖' },
-        { seq: 3, id: '2010', addr: '香港中環德輔道中 107 -111 號余崇本大廈地下' },
-        { seq: 4, id: '2030', addr: '香港中環皇后大道中2號長江中心CKC18地庫B2' },
-        { seq: 5, id: '2050', addr: '香港中環皇后大道中 33 號萬邦行低層地下 1-2 號舖' },
-        { seq: 6, id: '2200', addr: '香港太古城中心南商場 4 樓418 號舖' },
-        { seq: 7, id: '2510', addr: '香港北角英皇道 560 號健威坊L6-7 及 L28-30 號舖及地庫' },
-        { seq: 8, id: '2370', addr: '香港英皇道 260 號怡安中心地下(部份) 及 1 樓' },
-        { seq: 9, id: '2680', addr: '香港柴灣新翠商場 306-7 及 337 號舖' },
-        { seq: 10, id: '2390', addr: '香港香港仔南寧街 7-11 號香港仔中心 1 樓 2 號 及 47號舖' },
-        { seq: 11, id: '6330', addr: '新界大圍車公廟路18號圍方5樓524號舖' },
-        { seq: 12, id: '6130', addr: '沙田新城市廣場6樓635-636舖' },
-        { seq: 13, id: '6200', addr: '新界葵芳新都會廣場5樓543-545號舖' },
-        { seq: 14, id: '6250', addr: '新界荃灣廣場 4 樓 450-453號舖' },
-        { seq: 15, id: '6260', addr: '新界荃灣眾安街 57 -63 號周氏商業中心地下' }
-    ],
-    fri: [
-        { seq: 1, id: '4530', addr: '九龍慈雲山毓華街 23 號慈雲山中心 4 樓411-412 號舖' },
-        { seq: 2, id: '4840', addr: '九龍鑽石山荷李活廣場 2 樓 201 號舖' },
-        { seq: 3, id: '4250', addr: '九龍黃大仙龍翔道136號黃大仙中心北館地下G11號鋪' },
-        { seq: 4, id: '4380', addr: '九龍德福廣場第一期 G45-51號舖' },
-        { seq: 5, id: '4360', addr: '九龍灣牛頭角道 77號淘大商場2樓S54-56號舖' },
-        { seq: 6, id: '4180', addr: '九龍觀塘創紀之城第 5 期 APM5 樓 L5-X 號舖' },
-        { seq: 7, id: '4150', addr: '九龍油塘大本型1樓126號舖' },
-        { seq: 8, id: '4700', addr: '新界將軍澳唐德街9號將軍澳中心地下G41號舖' },
-        { seq: 9, id: '4710', addr: '新界將軍澳新都城二期 UG011-013號舖' },
-        { seq: 10, id: '4720', addr: '新界將軍澳東港城 2 樓 259 號舖' },
-        { seq: 11, id: '4730', addr: '香港新界西貢將軍澳康城路1號The LOHAS 康城3樓325至326號舖' },
-        { seq: 12, id: '4890', addr: '新界將軍澳 PopCorn 2, F70 號舖' },
-        { seq: 13, id: '8740', addr: '九龍啟德協調道2號 Airside B1樓 B111-112號舖' }
-    ],
-    mon: [
-        { seq: 1, id: '6160', addr: '新界天水圍天恩路 12-18 號嘉湖一期二樓 221-222 號舖' },
-        { seq: 2, id: '6280', addr: '新界屯門鄉事會路83號 V City 地鐵樓層 L2, M-45 及 46號舖' },
-        { seq: 3, id: '6610', addr: '新界屯門屯盛街 1 號屯門市廣場 1 期地下G002-G007 號舖' },
-        { seq: 4, id: '6360', addr: '新界元朗大棠路光華廣場 1 樓' },
-        { seq: 5, id: '6700', addr: '元朗青山公路-元朗段 249-251 號元朗廣場 146-149 及 161 號舖' },
-        { seq: 6, id: '6800', addr: '新界元朗朗日路8號形點II3樓A328-A329號舖' },
-        { seq: 7, id: '6380', addr: '新界上水廣場 4 樓 407號舖' },
-        { seq: 8, id: '6560', addr: '新界粉嶺名都商場 2 樓 28C 舖' },
-        { seq: 9, id: '6370', addr: '大埔超級城 C區2樓564-566 & 570號' },
-        { seq: 10, id: '6720', addr: '新界馬鞍山廣場 3 樓 364B 號舖' }
+    wed:[
+        {id:'4090',addr:'九龍美孚新邨萬事達廣場地下 N58, N65-N68 號舖'},{id:'4760',addr:'九龍旺角山東街 47-51 號中僑商業大廈 2-3 號舖'},
+        {id:'4770',addr:'九龍西洋菜街南街13-19號好望角大廈地下4號舖及地庫B2舖'},{id:'4780',addr:'九龍旺角彌敦道 664 號惠豐中心地下 4-6 號舖'},
+        {id:'4910',addr:'九龍奧海城 2 期高層地下 UG05B 及 UG06A 舖'},{id:'4660',addr:'九龍彌敦道 143-161 號栢麗購物大道B 區及 C 區地下 G49-G50 號舖'},
+        {id:'4830',addr:'九龍深水埗欽州街西九龍中心 5 樓 501A 號舖'},{id:'4810',addr:'九龍深水埗深旺道28號 V Walk 2樓 L2-53 & L2-55號舖'},
+        {id:'4970',addr:'九龍深水埗福華街 146/152號黃金電腦商場50號舖'},{id:'4860',addr:'九龍黃埔花園第十二期家居庭地庫B3號舖'},
+        {id:'4750',addr:'九龍旺角 Moko 4 樓 420 號舖'},{id:'4920',addr:'九龍柯士甸道西一號圓方一樓1050B號舖'},
+        {id:'4130',addr:'九龍尖沙咀海洋中心 3 樓333A, 333B, 335-7 號舖'},{id:'4690',addr:'九龍又一城 MTR 層 01 號舖'}
+    ],thu:[
+        {id:'2430',addr:'香港德輔道西 396 號華明中心地下後座'},{id:'2580',addr:'香港莊士敦道141-147號鴻江大廈地庫及地下C號舖'},
+        {id:'2010',addr:'香港中環德輔道中 107 -111 號余崇本大廈地下'},{id:'2030',addr:'香港中環皇后大道中2號長江中心CKC18地庫B2'},
+        {id:'2050',addr:'香港中環皇后大道中 33 號萬邦行低層地下 1-2 號舖'},{id:'2200',addr:'香港太古城中心南商場 4 樓418 號舖'},
+        {id:'2510',addr:'香港北角英皇道 560 號健威坊L6-7 及 L28-30 號舖及地庫'},{id:'2370',addr:'香港英皇道 260 號怡安中心地下(部份) 及 1 樓'},
+        {id:'2680',addr:'香港柴灣新翠商場 306-7 及 337 號舖'},{id:'2390',addr:'香港香港仔南寧街 7-11 號香港仔中心 1 樓 2 號 及 47號舖'},
+        {id:'6330',addr:'新界大圍車公廟路18號圍方5樓524號舖'},{id:'6130',addr:'沙田新城市廣場6樓635-636舖'},
+        {id:'6200',addr:'新界葵芳新都會廣場5樓543-545號舖'},{id:'6250',addr:'新界荃灣廣場 4 樓 450-453號舖'},
+        {id:'6260',addr:'新界荃灣眾安街 57 -63 號周氏商業中心地下'}
+    ],fri:[
+        {id:'4530',addr:'九龍慈雲山毓華街 23 號慈雲山中心 4 樓411-412 號舖'},{id:'4840',addr:'九龍鑽石山荷李活廣場 2 樓 201 號舖'},
+        {id:'4250',addr:'九龍黃大仙龍翔道136號黃大仙中心北館地下G11號鋪'},{id:'4380',addr:'九龍德福廣場第一期 G45-51號舖'},
+        {id:'4360',addr:'九龍灣牛頭角道 77號淘大商場2樓S54-56號舖'},{id:'4180',addr:'九龍觀塘創紀之城第 5 期 APM5 樓 L5-X 號舖'},
+        {id:'4150',addr:'九龍油塘大本型1樓126號舖'},{id:'4700',addr:'新界將軍澳唐德街9號將軍澳中心地下G41號舖'},
+        {id:'4710',addr:'新界將軍澳新都城二期 UG011-013號舖'},{id:'4720',addr:'新界將軍澳東港城 2 樓 259 號舖'},
+        {id:'4730',addr:'香港新界西貢將軍澳康城路1號The LOHAS 康城3樓325至326號舖'},
+        {id:'4890',addr:'新界將軍澳 PopCorn 2, F70 號舖'},{id:'8740',addr:'九龍啟德協調道2號 Airside B1樓 B111-112號舖'}
+    ],mon:[
+        {id:'6160',addr:'新界天水圍天恩路 12-18 號嘉湖一期二樓 221-222 號舖'},{id:'6280',addr:'新界屯門鄉事會路83號 V City 地鐵樓層 L2, M-45 及 46號舖'},
+        {id:'6610',addr:'新界屯門屯盛街 1 號屯門市廣場 1 期地下G002-G007 號舖'},{id:'6360',addr:'新界元朗大棠路光華廣場 1 樓'},
+        {id:'6700',addr:'元朗青山公路-元朗段 249-251 號元朗廣場 146-149 及 161 號舖'},{id:'6800',addr:'新界元朗朗日路8號形點II3樓A328-A329號舖'},
+        {id:'6380',addr:'新界上水廣場 4 樓 407號舖'},{id:'6560',addr:'新界粉嶺名都商場 2 樓 28C 舖'},
+        {id:'6370',addr:'大埔超級城 C區2樓564-566 & 570號'},{id:'6720',addr:'新界馬鞍山廣場 3 樓 364B 號舖'}
     ]
 };
 
-const DAY_NAMES = { mon:'一', wed:'三', thu:'四', fri:'五' };
-const TOTAL_STORES = Object.values(originalData).reduce((a,d)=>a+d.length,0);
+const DAY_NAMES={mon:'一',wed:'三',thu:'四',fri:'五'};
+const TOTAL=Object.values(originalData).reduce((a,d)=>a+d.length,0);
 
-let completedStores = {}, imageCache = {};
-let isFirebaseReady = false, firebaseDB;
-let currentImgKey = null;
-let currentDay = 'wed';
-let _editingKey = null;
-
-// Lightbox
-let lbImages=[],lbIndex=0,lbStoreKey=null,zoomLevel=1,tx=0,ty=0;
-
-// DB
-let dbInst = null;
-const DB_NAME='SFS_Delivery_v14', STORE_NAME='images';
+let completedStores={},imageCache={},isFBReady=false,fDB,currentImgKey=null,currentDay='wed',_editKey=null;
+let lbImages=[],lbIdx=0,lbSk=null,zL=1,tX=0,tY=0;
+let dbInst=null,DB_NAME='SFS_Delivery_v15',ST_NAME='images';
+let galFilterSk=null;
 
 // ============================================================
-// ===== 密碼系統 =====
+// PASSWORD
 // ============================================================
-let ACCESS_PASSWORD='CS1908', PASSWORD_VERSION=0;
-
-function isVerified(){ return sessionStorage.getItem('sfsV14_verified')==='true'; }
-
-async function loadCloudPassword(){
-    if(!isFirebaseReady||!firebaseDB)return false;
-    try{
-        const s=await firebaseDB.ref('passwordConfig').once('value');
-        const cfg=s.val();
-        if(cfg&&cfg.password){
-            ACCESS_PASSWORD=cfg.password||'CS1908';
-            PASSWORD_VERSION=cfg.version||0;
-            const lv=parseInt(sessionStorage.getItem('sfsV14_pwdVer')||'-1');
-            if(PASSWORD_VERSION>lv){sessionStorage.removeItem('sfsV14_verified');sessionStorage.removeItem('sfsV14_pwdVer');showToast('⚠️ 密碼已更新','info');}
-            return true;
-        } else {
-            await firebaseDB.ref('passwordConfig').set({password:'CS1908',version:0,updatedAt:Date.now()});
-            return true;
-        }
+let ACCESS_PWD='CS1908',PWD_VER=0;
+function isVerified(){return sessionStorage.getItem('sfsV15_v')==='true';}
+async function loadCloudPwd(){
+    if(!isFBReady||!fDB)return false;
+    try{const s=await fDB.ref('passwordConfig').once('value');const c=s.val();
+        if(c&&c.password){ACCESS_PWD=c.password||'CS1908';PWD_VER=c.version||0;
+            const lv=parseInt(sessionStorage.getItem('sfsV15_pv')||'-1');
+            if(PWD_VER>lv){sessionStorage.removeItem('sfsV15_v');sessionStorage.removeItem('sfsV15_pv');showToast('⚠️ 密碼已更新','info');}
+            return true;}
+        else{await fDB.ref('passwordConfig').set({password:'CS1908',version:0,updatedAt:Date.now()});return true;}
     }catch(e){return false;}
 }
-
-async function ensureFirebaseReady(){
-    if(isFirebaseReady&&firebaseDB)return true;
+async function ensureFB(){
+    if(isFBReady&&fDB)return true;
     for(let i=0;i<3;i++){
         try{
             if(!window.firebase){await new Promise(r=>setTimeout(r,1000));continue;}
-            if(!firebaseDB){
-                firebase.initializeApp({apiKey:'AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc',
-                    authDomain:'fan-stand-delivery.firebaseapp.com',
-                    databaseURL:'https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app',
-                    projectId:'fan-stand-delivery'});
-                firebaseDB=firebase.database();
-            }
-            await firebaseDB.ref('.info/connected').once('value');
-            isFirebaseReady=true;return true;
+            if(!fDB){firebase.initializeApp({apiKey:'AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc',
+                authDomain:'fan-stand-delivery.firebaseapp.com',databaseURL:'https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app',projectId:'fan-stand-delivery'});
+                fDB=firebase.database();}
+            await fDB.ref('.info/connected').once('value');isFBReady=true;return true;
         }catch(e){if(i<2)await new Promise(r=>setTimeout(r,1000));}
-    }
-    return false;
+    }return false;
 }
-
-async function checkPassword(){
-    const inp=document.getElementById('passwordInput').value.trim();
-    if(isFirebaseReady&&firebaseDB)await loadCloudPassword();
-    if(inp===ACCESS_PASSWORD){
-        sessionStorage.setItem('sfsV14_verified','true');sessionStorage.setItem('sfsV14_pwdVer',PASSWORD_VERSION.toString());
-        document.getElementById('passwordScreen').classList.add('hidden');
-        document.getElementById('mainContent').style.display='block';
-        document.getElementById('passwordError').style.display='none';await init();
-    }else{
-        document.getElementById('passwordError').style.display='block';document.getElementById('passwordInput').value='';
-    }
+async function checkPwd(){
+    const inp=document.getElementById('pwdInput').value.trim();
+    if(isFBReady&&fDB)await loadCloudPwd();
+    if(inp===ACCESS_PWD){
+        sessionStorage.setItem('sfsV15_v','true');sessionStorage.setItem('sfsV15_pv',PWD_VER.toString());
+        document.getElementById('pwdScreen').classList.add('hidden');document.getElementById('mainC').style.display='block';
+        document.getElementById('pwdErr').style.display='none';await init();
+    }else{document.getElementById('pwdErr').style.display='block';document.getElementById('pwdInput').value='';}
 }
-
-function openChangePassword(){
-    document.getElementById('changePwdScreen').classList.add('active');
-    document.getElementById('oldPwdInput').value='';document.getElementById('newPwdInput').value='';
-    document.getElementById('chgPwdError').style.display='none';
-}
-function closeChangePassword(){
-    document.getElementById('changePwdScreen').classList.remove('active');
-    document.getElementById('passwordInput').value='';
-}
-async function doChangePassword(){
-    const ov=document.getElementById('oldPwdInput').value,nv=document.getElementById('newPwdInput').value,e=document.getElementById('chgPwdError');
+function openChgPwd(){document.getElementById('chgScreen').classList.add('active');
+    document.getElementById('oldPwdI').value='';document.getElementById('newPwdI').value='';document.getElementById('chgErr').style.display='none';}
+function closeChgPwd(){document.getElementById('chgScreen').classList.remove('active');document.getElementById('pwdInput').value='';}
+async function doChgPwd(){
+    const ov=document.getElementById('oldPwdI').value,nv=document.getElementById('newPwdI').value,e=document.getElementById('chgErr');
     e.style.display='none';
-    const fbOk=await ensureFirebaseReady();
-    if(fbOk&&firebaseDB)await loadCloudPassword();
-    if(ov!==ACCESS_PASSWORD){e.textContent='舊密碼錯誤';e.style.display='block';return;}
-    if(nv.length<4){e.textContent='新密碼至少需要4位';e.style.display='block';return;}
-    if(!fbOk||!firebaseDB){e.textContent='雲端連接失敗，請檢查網絡';e.style.display='block';return;}
-    try{
-        const nvv=PASSWORD_VERSION+1;
-        await firebaseDB.ref('passwordConfig').set({password:nv,version:nvv,updatedAt:Date.now()});
-        ACCESS_PASSWORD=nv;PASSWORD_VERSION=nvv;
-        alert('✅ 密碼修改成功！所有設備需使用新密碼。');closeChangePassword();
-        sessionStorage.remove('sfsV14_verified');sessionStorage.setItem('sfsV14_pwdVer',nvv.toString());
-        document.getElementById('passwordScreen').classList.remove('hidden');
-        document.getElementById('mainContent').style.display='none';
+    const ok=await ensureFB();if(ok&&fDB)await loadCloudPwd();
+    if(ov!==ACCESS_PWD){e.textContent='舊密碼錯誤';e.style.display='block';return;}
+    if(nv.length<4){e.textContent='至少4位';e.style.display='block';return;}
+    if(!ok||!fDB){e.textContent='雲端連接失敗';e.style.display='block';return;}
+    try{const nvv=PWD_VER+1;await fDB.ref('passwordConfig').set({password:nv,version:nvv,updatedAt:Date.now()});
+        ACCESS_PWD=nv;PWD_VER=nvv;alert('✅ 密碼已修改！');closeChgPwd();
+        sessionStorage.remove('sfsV15_v');sessionStorage.setItem('sfsV15_pv',nvv.toString());
+        document.getElementById('pwdScreen').classList.remove('hidden');document.getElementById('mainC').style.display='none';
     }catch(ex){e.textContent='失敗:'+ex.message;e.style.display='block';}
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-    document.getElementById('passwordInput').addEventListener('keypress',e=>{if(e.key==='Enter')checkPassword();});
-    document.getElementById('oldPwdInput').addEventListener('keypress',e=>{if(e.key==='Enter')doChangePassword();});
-    document.getElementById('newPwdInput').addEventListener('keypress',e=>{if(e.key==='Enter')doChangePassword();});
+    document.getElementById('pwdInput').addEventListener('keypress',e=>{if(e.key==='Enter')checkPwd();});
+    document.getElementById('oldPwdI').addEventListener('keypress',e=>{if(e.key==='Enter')doChgPwd();});
+    document.getElementById('newPwdI').addEventListener('keypress',e=>{if(e.key==='Enter')doChgPwd();});
 });
 window.addEventListener('load',async()=>{
-    let a=0;const iv=setInterval(async()=>{
-        a++;if(isFirebaseReady){clearInterval(iv);await loadCloudPassword();
-            if(isVerified()){document.getElementById('passwordScreen').classList.add('hidden');document.getElementById('mainContent').style.display='block';await init();}
-            else document.getElementById('passwordInput').focus();}
+    let a=0,const iv=setInterval(async()=>{
+        a++;if(isFBReady){clearInterval(iv);await loadCloudPwd();
+            if(isVerified()){document.getElementById('pwdScreen').classList.add('hidden');document.getElementById('mainC').style.display='block';await init();}
+            else document.getElementById('pwdInput').focus();}
         else if(a>=20){clearInterval(iv);
-            if(isVerified()){document.getElementById('passwordScreen').classList.add('hidden');document.getElementById('mainContent').style.display='block';await init();}
-            else document.getElementById('passwordInput').focus();}
+            if(isVerified()){document.getElementById('pwdScreen').classList.add('hidden');document.getElementById('mainC').style.display='block';await init();}
+            else document.getElementById('pwdInput').focus();}
     },500);
 });
 
 // ============================================================
-// ===== Firebase =====
+// FIREBASE + DB + LS
 // ============================================================
-function initFirebase(){
-    try{firebase.initializeApp({apiKey:'AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc',
-        authDomain:'fan-stand-delivery.firebaseapp.com',databaseURL:'https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app',projectId:'fan-stand-delivery'});
-        firebaseDB=firebase.database();isFirebaseReady=true;}catch(e){}
-}
-function makeSafeKey(d,id){return `${d}-${id}`;}
-
-// ============================================================
-// ===== IndexedDB =====
-// ============================================================
+function initFB(){try{firebase.initializeApp({apiKey:'AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc',
+    authDomain:'fan-stand-delivery.firebaseapp.com',databaseURL:'https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app',projectId:'fan-stand-delivery'});
+    fDB=firebase.database();isFBReady=true;}catch(e){}}
+function mKey(d,id){return `${d}-${id}`;}
 function openDB(){return new Promise((res,rej)=>{
-    const r=indexedDB.open(DB_NAME,1);
-    r.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(STORE_NAME))db.createObjectStore(STORE_NAME,{keyPath:['storeKey','imageId']});};
-    r.onsuccess=e=>{dbInst=e.target.result;res(dbInst);};r.onerror=e=>rej(e.target.error);
-});}
-async function saveImageToDB(sk,id,data){const db=await openDB();return new Promise((res,rej)=>{
-    const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).put({storeKey:sk,imageId:id,imageData:data,time:Date.now()});
-    tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
-});}
-async function getImagesFromDB(sk){const db=await openDB();return new Promise(res=>{
-    const tx=db.transaction([STORE_NAME],'readonly');
-    tx.objectStore(STORE_NAME).getAll().onsuccess=e=>{const all=(e.target.result)||[];res(all.filter(r=>r.storeKey===sk));};
-});}
-async function deleteImageFromDB(sk,id){const db=await openDB();return new Promise((res,rej)=>{
-    const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).delete([sk,id]);
-    tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
-});}
-async function clearAllImagesFromDB(){const db=await openDB();return new Promise((res,rej)=>{
-    const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).clear();
-    tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
-});}
+    const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(ST_NAME))db.createObjectStore(ST_NAME,{keyPath:['storeKey','imageId']});};
+    r.onsuccess=e=>{dbInst=e.target.result;res(dbInst);};r.onerror=e=>rej(e.target.error);});}
+async function saveImg(sk,id,d){const db=await openDB();return new Promise((res,rej)=>{
+    const tx=db.transaction([ST_NAME],'readwrite');tx.objectStore(ST_NAME).put({storeKey:sk,imageId:id,imageData:d,time:Date.now()});
+    tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);});}
+async function getImgs(sk){const db=await openDB();return new Promise(res=>{
+    const tx=db.transaction([ST_NAME],'readonly');tx.objectStore(ST_NAME).getAll().onsuccess=e=>{const all=(e.target.result)||[];res(all.filter(r=>r.storeKey===sk));};});}
+async function delImg(sk,id){const db=await openDB();return new Promise((res,rej)=>{
+    const tx=db.transaction([ST_NAME],'readwrite');tx.objectStore(ST_NAME).delete([sk,id]);tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);});}
+async function clearAllImg(){const db=await openDB();return new Promise((res,rej)=>{
+    const tx=db.transaction([ST_NAME],'readwrite');tx.objectStore(ST_NAME).clear();tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);});}
+function loadData(){try{completedStores=JSON.parse(localStorage.getItem('sfsV15_stores'))||{};}catch(e){completedStores={};imageCache={};}}
+function saveData(){localStorage.setItem('sfsV15_stores',JSON.stringify(completedStores));}
+function saveIK(key){const d=JSON.parse(localStorage.getItem('sfsV15_ik')||'{}');d[key]=true;localStorage.setItem('sfsV15_ik',JSON.stringify(d));}
 
-// ============================================================
-// ===== LocalStorage =====
-// ============================================================
-function loadAllData(){try{completedStores=JSON.parse(localStorage.getItem('sfsV14_stores'))||{};}catch(e){completedStores={};imageCache={};}}
-function saveStoresData(){localStorage.setItem('sfsV14_stores',JSON.stringify(completedStores));}
-function saveImageKey(key){const d=JSON.parse(localStorage.getItem('sfsV14_imgKeys')||'{}');d[key]=true;localStorage.setItem('sfsV14_imgKeys',JSON.stringify(d));}
-
-// ============================================================
-// ===== EXIF =====
-// ============================================================
-function getExifTime(file){return new Promise(resolve=>{
+// EXIF
+function getExifTime(file){return new Promise(res=>{
     try{EXIF.getData(file,function(){
-        const dt=EXIF.getTag(this,'DateTimeOriginal');
-        if(dt){const ex=new Date(dt.replace(/\:/g,'-').replace(/ /,'T'));
-            if(!isNaN(ex.getTime()))resolve(ex.getTime());else resolve(null);}else resolve(null);
-    });}catch(e){resolve(null);}
-    setTimeout(()=>resolve(null),500);
+        const dt=EXIF.getTag(this,'DateTimeOriginal');if(dt){const ex=new Date(dt.replace(/\:/g,'-').replace(/ /,'T'));
+            if(!isNaN(ex.getTime()))res(ex.getTime());else res(null);}else res(null);
+    });}catch(e){res(null);}setTimeout(()=>res(null),500);
 });}
-
-// ============================================================
-// ===== 圖片處理 =====
-// ============================================================
-function compressImage(file,mKB=300){return new Promise(res=>{
+function compress(file,mKB=300){return new Promise(res=>{
     const fr=new FileReader();fr.onload=e=>{const i=new Image();i.onload=()=>{
-        const c=document.createElement('canvas'),x=c.getContext('2d');
-        let w=i.width,h=i.height,m=1200;if(w>m||h>m){const s=Math.min(m/w,m/h);w*=s;h*=s;}
-        c.width=w;c.height=h;x.drawImage(i,0,0,w,h);let q=0.8,d=c.toDataURL('image/jpeg',q);
-        while(d.length/1024>mKB&&q>0.1){q-=0.1;d=c.toDataURL('image/jpeg',q);}res(d);
+        const c=document.createElement('canvas'),x=c.getContext('2d'),w=i.width,h=i.height,m=1200;if(w>m||h>m){const s=Math.min(m/w,m/h);w*=s;h*=s;}
+        c.width=w;c.height=h;x.drawImage(i,0,0,w,h);let q=.8,d=c.toDataURL('image/jpeg',q);
+        while(d.length/1024>mKB&&q>.1){q-=.1;d=c.toDataURL('image/jpeg',q);}res(d);
     };i.src=e.target.result;};fr.readAsDataURL(file);
 });}
 
-function openImgModal(sk){currentImgKey=sk;document.getElementById('imgModalT').textContent=`為 ${sk.split('-')[1]} 添加圖片`;document.getElementById('imgModal').classList.add('show');}
-function closeImgModal(){document.getElementById('imgModal').classList.remove('show');currentImgKey=null;}
-function takePhoto(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('fileInput').click(),100);}
-function chooseFromGallery(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('galleryFileInput').click(),100);}
-
-document.getElementById('fileInput').addEventListener('change',handleFiles);
-document.getElementById('galleryFileInput').addEventListener('change',handleFiles);
-
-async function handleFiles(e){
-    const f=e.target.files;if(!f.length||!currentImgKey)return;
-    const k=currentImgKey,exist=(imageCache[k]||[]).length;
-    if(exist>=2){showToast('❌ 每店最多2張','error');e.target.value='';currentImgKey=null;return;}
-    for(let j=0;j<Math.min(f.length,2-exist);j++){
-        showToast('📷 處理中...','info');
-        const comp=await compressImage(f[j]),iid='img_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
-        await saveImageToDB(k,iid,comp);
-        if(!imageCache[k])imageCache[k]=[];imageCache[k].push({id:iid,data:comp,time:Date.now()});saveImageKey(k);
-        // EXIF auto time
-        if(completedStores[k]){try{const et=await getExifTime(f[j]);if(et){completedStores[k].time=et;saveStoresData();showToast(`⏰ 自動設定拍照時間`,'info');}}catch(ex){}}
-    }
-    e.target.value='';currentImgKey=null;renderStoreList();renderCompletedList();updateStats();showToast('✅ 圖片已保存','success');
-}
-
 // ============================================================
-// ===== 渲染：日期Tab（帶完成率） =====
+// RENDER: Day Tabs (v05 card style)
 // ============================================================
-
-function getTodayStr(){
-    const d=new Date(),m=d.getMonth()+1,dd=d.getDate();
-    return m+'/'+dd;
-}
-
 function renderDayTabs(){
     const el=document.getElementById('dayTabs'),days=Object.keys(originalData);
+    const today=new Date(),td=`${today.getMonth()+1}/${today.getDate()}`;
+    const dlMap={mon:'10/4',wed:'8/4',thu:'9/4',fri:'10/4'};
     el.innerHTML=days.map(dk=>{
-        const stores=originalData[dk]||[];
-        let done=0;for(const s of stores){if(completedStores[makeSafeKey(dk,s.id)])done++;}
-        const dName=DAY_NAMES[dk]||dk,total=stores.length;
-        return `<div class="day-tab ${dk===currentDay?'active':''}" data-d="${dk}" onclick="selectDay('${dk}',this)">
-            <div class="dt-date">${getDayLabel(dk)}</div><div class="dt-day">${dName}</div>
-            <div class="dt-count">${done}/${total}</div></div>`;
+        const st=originalData[dk]||[],dn=DAY_NAMES[dk]||dk,dl=dlMap[dk]||'--/-';
+        let done=0;for(const s of st){if(completedStores[mKey(dk,s.id)])done++;}
+        const isRay=(dl===td);
+        return `<button class="day-btn ${dk===currentDay?'active':''} ${isRay?'raymond':''}" data-d="${dk}" onclick="selDay('${dk}',this)">
+            <div class="db-date">${dl}</div><div class="db-day">${dn}</div><div class="db-count">${done}/${st.length}</div></button>`;
     }).join('');
-    // Today badge
-    const td=getTodayStr();
-    document.getElementById('todayBadge').textContent=td;
+    // Today date
+    const d=new Date(),m=d.getMonth()+1,dd=d.getDate();
+    document.getElementById('todayDate').textContent=`${new Date().toLocaleDateString('zh-TW',{weekday:'long',month:'long',day:'numeric'})} · ${m}/${dd}`;
 }
-
-function getDayLabel(dk){
-    // Return date label like "9/4", "10/4" etc. based on day key
-    const map={mon:'10/4',wed:'8/4',thu:'9/4',fri:'10/4'};
-    return map[dk]||'--/-';
-}
-
-function selectDay(dk,bt){
-    currentDay=dk;document.querySelectorAll('.day-tab').forEach(t=>t.classList.remove('active'));if(bt)bt.classList.add('active');
-    renderStoreList();updateStats();
-}
+function selDay(dk,bt){currentDay=dk;document.querySelectorAll('.day-btn').forEach(t=>t.classList.remove('active'));if(bt)bt.classList.add('active');
+    renderList();updateStats();renderGalTabs();renderGallery();}
 
 // ============================================================
-// ===== 測染：統計區（4格） =====
+// RENDER: Stats
 // ============================================================
 function updateStats(){
-    let totalDone=0, totalTodo=0, photoTotal=0;
-    let dayDone=0, dayTodo=0;
-    const curStores=originalData[currentDay]||[];
-
-    for(const[dk,stores]of Object.entries(originalData)){
-        for(const s of stores){
-            const k=makeSafeKey(dk,s.id);
-            if(completedStores[k])totalDone++; else totalTodo++;
-        }
-    }
-    for(const s of curStores){
-        const k=makeSafeKey(currentDay,s.id);
-        if(completedStores[k])dayDone++; else dayTodo++;
-    }
-    for(const imgs of Object.values(imageCache))photoTotal+=imgs.length;
-
-    document.getElementById('stDone').textContent=totalDone;
-    document.getElementById('stDoneTotal').textContent='/'+TOTAL_STORES;
-    document.getElementById('stTodo').textContent=totalTodo;
-    document.getElementById('stTodoTotal').textContent='/'+TOTAL_STORES;
-    document.getElementById('stDayDone').textContent=dayDone;
-    document.getElementById('stDayTodo').textContent=dayTodo;
-
-    // Update tab counts too
+    let td=0,tt=0,dd=0,dt=0;
+    const cur=originalData[currentDay]||[];
+    for(const[dk,st]of Object.entries(originalData)){for(const s of st){completedStores[mKey(dk,s.id)]?td++:tt++;}}
+    for(const s of cur){completedStores[mKey(currentDay,s.id)]?dd++:dt++;}
+    let pt=0;for(const im of Object.values(imageCache))pt+=im.length;
+    document.getElementById('ovDone').textContent=td;document.getElementById('ovTodo').textContent=tt;
+    document.getElementById('dsDone').textContent=dd;document.getElementById('dsTodo').textContent=dt;
     renderDayTabs();
 }
 
 // ============================================================
-// ===== 渲染：店舖列表（圖5風格） =====
+// RENDER: Store List (v05 card style)
 // ============================================================
-function formatTime(ts){return new Date(ts).toLocaleString('zh-TW',{
-    year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).replace(/\//g,'/');
-}
+function fmtTime(ts){return new Date(ts).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).replace(/\//g,'/');}
+function findAddr(dk,sid){const a=originalData[dk];if(!a)return null;return a.find(s=>s.id===sid)||null;}
 
-function renderStoreList(){
-    const container=document.getElementById('listContainer');
-    const stores=originalData[currentDay]||[];
-    container.innerHTML=stores.map(s=>{
-        const k=makeSafeKey(currentDay,s.id);
-        const isC=!!completedStores[k];
-        const imgs=imageCache[k]||[];
-        const timeStr=isC?formatTime(completedStores[k].time):'';
-        const firstImg=imgs.length?imgs[0].data:null;
-
+function renderList(){
+    const c=document.getElementById('listContainer'),stores=originalData[currentDay]||[];
+    c.innerHTML=stores.map((s,i)=>{
+        const k=mKey(currentDay,s.id),isC=!!completedStores[k],imgs=imageCache[k]||[];
+        const ts=isC?fmtTime(completedStores[k].time):'',fi=imgs.length?imgs[0].data:null;
         return `<div class="store-card${isC?' completed':''}">
-            <!-- 左：序號 ✓ 店號 -->
-            <div class="sc-left">
-                <div class="sc-check ${isC?'done':''}" onclick="toggleComplete('${currentDay}','${s.id}')">${isC?'✓':''}</div>
-                <div class="sc-id">${s.seq}. ${s.id}</div>
+            <div class="cb-wrap"><div class="checkbox ${isC?'checked':''}" onclick="togComplete('${currentDay}','${s.id}')">${isC?'✓':''}</div></div>
+            <div class="sc-body">
+                <div class="sc-header-row">
+                    <div class="seq-badge">${s.seq}</div>
+                    <div class="store-info">
+                        <div class="store-id">${s.id}</div>
+                        <div class="store-meta">
+                            <span class="day-badge-sm">${DAY_NAMES[currentDay]}</span>
+                            <span class="dj-badge">DJ</span>${imgs.length?`<span class="pb-count">📷${imgs.length}</span>`:''}
+                        </div>
+                    </div>
+                </div>
+                ${imgs.length>0?`<div class="sc-img-row">${imgs.map((im,idx)=>`
+                    <div class="sc-thumb-w"><img class="sc-thumb" src="${im.data}" onclick="openLb('${k}',${idx})" alt="">
+                    <button class="sc-thumb-del" onclick="event.stopPropagation();reqDel('${k}','${im.id}')">✕</button></div>`).join('')}
+                    ${imgs.length<2?`<div class="sc-add-small" onclick="openIM('${k}')">+</div>`:''}</div>`:''}
+                <div class="store-addr">${s.addr}</div>
+                ${isC?`<div class="sc-time-line"><span class="sc-time-txt" onclick="openTm('${k}')">✅ ${ts} ✏️</span></div>`:''}
             </div>
-            <!-- 中間內容區 -->
-            <div class="sc-mid">
-                <div class="sc-day-tag">${DAY_NAMES[currentDay]||''}<button class="sc-dj-btn">DJ</button></div>
-                ${imgs.length>0?`
-                <!-- 圖片行：縮略圖 + 新增按鈕 平排 -->
-                <div class="sc-img-row">
-                    ${imgs.map((im,idx)=>`
-                    <div class="sc-thumb-wrap">
-                        <img class="sc-thumb" src="${im.data}" onclick="openLightbox('${k}',${idx})" alt="">
-                        <button class="sc-thumb-del" onclick="event.stopPropagation();requestDeleteImage('${k}','${im.id}')">✕</button>
-                    </div>`).join('')}
-                    ${imgs.length<2?`<div style="width:60px;height:60px;border-radius:8px;border:2px dashed #ccc;background:#fafafa;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;color:#bbb;flex-shrink:0;" onclick="openImgModal('${k}')" title="添加照片">+</div>`:''}
-                </div>`:''}
-                <!-- 地址（在圖片下方，自動換行） -->
-                <div class="sc-addr">${s.addr||''}</div>
-                ${isC?`<div class="sc-time-row"><span class="sc-time" onclick="openTimeModal('${k}')">✅ ${timeStr} ✏️</span>${imgs.length?`<span class="photo-badge">📷${imgs.length}</span>`:''}</div>`:''}
-            </div>
-            <!-- 右：首張縮圖預覽 -->
-            <div class="sc-right" onclick="${firstImg?`openLightbox('${k}',0)`:''}" title="${firstImg?'查看照片':''}">
-                ${firstImg?`<img src="${firstImg}" alt="">`:`<span class="sc-no-img">📷</span>`}
+            <div class="sc-right-thumb" onclick="${fi?`openLb('${k}',0)`:''}" title="預覽">
+                ${fi?`<img src="${fi}" alt="">`:`<span class="no-img-icon">📷</span>`}
             </div>
         </div>`;
     }).join('');
@@ -738,341 +572,223 @@ function renderStoreList(){
 }
 
 // ============================================================
-// ===== 渲染：已完成頁面 =====
+// RENDER: Completed (table style)
 // ============================================================
-function renderCompletedList(){
-    const el=document.getElementById('completedList');
+function renderCompleted(){
+    const rows=document.getElementById('compRows');
     const entries=Object.entries(completedStores).sort((a,b)=>b[1].time-a[1].time);
-    if(!entries.length){el.innerHTML='<div class="cc-empty">尚無已完成項目</div>';return;}
-
-    el.innerHTML=entries.map(([k,d])=>{
-        const ld=k.lastIndexOf('-'),sid=k.substring(ld+1),dk=k.substring(0,ld);
-        const imgs=imageCache[k]||[];
-        const addrObj=findAddr(dk,sid);
-
-        return `<div class="comp-card">
-            <div class="cc-left"><div class="cc-check">✓</div></div>
-            <div class="cc-info">
-                <div class="cc-id">${sid}${imgs.length?`<span class="photo-badge">📷${imgs.length}</span>`:''}</div>
-                <div class="cc-meta">
-                    <span class="cc-day">${DAY_NAMES[dk]||''}</span>
-                    <span class="cc-time" onclick="openTimeModal('${k}')">${formatTime(d.time)} ✏️</span>
-                </div>
-                ${addrObj?`<div class="cc-addr">${addrObj.addr}</div>`:''}
-            </div>
-            <div class="cc-img-wrap" onclick="${imgs.length?`openLightbox('${k}',0)`:''}">
-                ${imgs.length?`<img src="${imgs[0].data}" alt="">`:`<span class="cc-img-n">-</span>`}
-            </div>
-        </div>`;
-    }).join('');
-}
-
-function findAddr(dk,sid){
-    const arr=originalData[dk];if(!arr)return null;
-    return arr.find(s=>s.id===sid)||null;
+    if(!entries.length){rows.innerHTML='<div class="ct-empty">尚無已完成項目</div>';return;}
+    rows.innerHTML=entries.map(([k,d])=>{
+        const ld=k.lastIndexOf('-'),sid=k.substring(ld+1),dk=k.substring(0,ld),imgs=imageCache[k]||[];
+        return `<div class="ct-row">
+            <span class="ct-r-time" onclick="openTm('${k}')">${fmtTime(d.time)} ✏️</span>
+            <span class="ct-r-store">${sid}${imgs.length?`<span class="pb-count">📷${imgs.length}</span>`:''}</span>
+            <span class="ct-r-img">${imgs.length?`<img src="${imgs[0].data}" width="32" height="32" style="border-radius:6px;" onclick="openLb('${k}',0)">`:'-'}</span>
+        </div>`}).join('');
 }
 
 // ============================================================
-// ===== 渲染：圖片庫 =====
+// RENDER: Gallery (with store filter)
 // ============================================================
-function renderGallery(){
-    const g=document.getElementById('galleryGrid');
-    let items=[];
+function renderGalTabs(){
+    const el=document.getElementById('galTabs');
+    let items=[['全部','__all__']];
     for(const[k,imgs]of Object.entries(imageCache))
+        items.push([k.split('-')[1],k]);
+    items.sort((a,b)=>a[0].localeCompare(b[0],'zh-HK'));
+    el.innerHTML='<button class="gst-btn '+(galFilterSk===null||galFilterSk==='__all__'?'active':'')+' " onclick="filterGal(\'__all__',this)">全部</button>'
+        +items.slice(1).map(([lbl,sk])=>`<button class="gst-btn ${(galFilterSk===sk?'active':'')} ${imageCache[sk]?.length?'has-img':''}" style="position:relative;" onclick="filterGal('${sk}',this)">${lbl}</button>`).join('');
+}
+function filterGal(sk,bt){
+    galFilterSk=(sk==='__all__')?null:sk;
+    document.querySelectorAll('.gst-btn').forEach(b=>b.classList.remove('active'));if(bt)bt.classList.add('active');
+    renderGallery();
+}
+function renderGallery(){
+    const g=document.getElementById('galGrid');
+    let items=[];
+    const keys=galFilterSk?[galFilterSk]:Object.keys(imageCache);
+    for(const k of keys){
+        const imgs=imageCache[k]||[];
         imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:im.time||0}));
+    }
     items.sort((a,b)=>(b.time||0)-(a.time||0));
-
     g.innerHTML=items.length?items.map(it=>{
-        const imId=imageCache[it.k][it.idx].id;
-        return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
-            onclick="openLightbox('${it.k}',${it.idx})"
-            ontouchstart="galleryTouchStart(event)" ontouchend="galleryTouchEnd(event)">
-            <img src="${it.data}" alt="">
-            <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}"
-                onclick="event.stopPropagation();requestDeleteImage('${it.k}','${imId}');closeLightbox();this.closest('.gal-item').style.display='none';">🗑️</div>
-        </div>`;
-    }).join(''):'<div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa;">尚無圖片</div>';
+        const iid=imageCache[it.k][it.idx].id;
+        return `<div class="gal-item" onclick="openLb('${it.k}',${it.idx})" ontouchstart="galTS(event)" ontouchend="galTE()">
+            <img src="${it.data}" alt=""><div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}"
+            onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').style.display='none';">🗑️</div><div class="gal-hint">長按刪除</div></div>`;
+    }).join(''):'<div style="grid-column:1/-1;text-align:center;padding:35px;color:#aaa;">尚無圖片</div>';
 }
-
-// Gallery long-press delete
-let _gtTimer=null, _gtEl=null;
-function galleryTouchStart(e){
-    if(e.touches.length!==1)return;
-    const el=e.currentTarget;
-    _gtEl=el;
-    _gtTimer=setTimeout(()=>{
-        // Long press detected
-        if(_gtEl){const overlay=_gtEl.querySelector('.gal-del-overlay');if(overlay)overlay.classList.add('show');}
-    },500);
-}
-function galleryTouchEnd(e,k,imgId){
-    clearTimeout(_gtTimer);_gtTimer=null;
-}
-function showGalleryDel(el){
-    const overlay=el.querySelector('.gal-del-overlay');if(overlay)overlay.classList.toggle('show');
-}
-
-// Close gallery overlay when clicking outside or opening lightbox
-const _origLB=openLightbox;
-openLightbox=function(k,idx){
-    // Hide any open gallery overlays first
-    document.querySelectorAll('.gal-del-overlay.show').forEach(o=>o.classList.remove('show'));
-    _origLB(k,idx);
-};
+let _gtTimer=null,_gtEl=null;
+function galTS(e){if(e.touches.length!==1)return;_gtEl=e.currentTarget;_gtTimer=setTimeout(()=>{if(_gtEl){const o=_gtEl.querySelector('.gal-del-overlay');if(o)o.style.opacity='1';}},500);}
+function galTE(){clearTimeout(_gtTimer);_gtTimer=null;}
 
 // ============================================================
-// ===== 操作 =====
+// ACTIONS
 // ============================================================
-function toggleComplete(dk,sid){
-    const k=makeSafeKey(dk,sid);
-    if(completedStores[k])delete completedStores[k];
-    else completedStores[k]={time:Date.now()};
-    saveStoresData();renderStoreList();renderCompletedList();updateStats();
-}
-function switchPage(pid,btn){
+function togComplete(dk,sid){const k=mKey(dk,sid);if(completedStores[k])delete completedStores[k];else completedStores[k]={time:Date.now()};saveData();renderList();renderCompleted();updateStats();}
+function swPg(pid,bt){
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
-    document.getElementById(pid).classList.add('active');
-    if(btn)btn.classList.add('active');
-    if(pid==='pageCompleted')renderCompletedList();
-    if(pid==='pageGallery')renderGallery();
-}
+    document.getElementById(pid).classList.add('active');if(bt)bt.classList.add('active');
+    if(pid==='pgCompleted')renderCompleted();
+    if(pid==='pgGallery'){renderGalTabs();renderGallery();}
 
-// 刪除圖片
-let _pendingDel=null;
-function requestDeleteImage(key,imgId){
-    _pendingDel={key,imgId};
-    showConfirm('確定要刪除此照片？\n\n此操作不可復原。',()=>doDeleteImage(_pendingDel.key,_pendingDel.imgId));
-}
-function doDeleteImage(key,imgId){
-    if(imageCache[key]){
-        imageCache[key]=imageCache[key].filter(im=>im.id!==imgId);
-        if(!imageCache[key].length)delete imageCache[key];
+// Image Modal (Bottom Sheet)
+function openIM(sk){currentImgKey=sk;document.getElementById('imTitle').textContent=`為 ${sk.split('-')[1]} 添加圖片`;document.getElementById('imgModal').classList.add('show');}
+function closeIModal(){document.getElementById('imgModal').classList.remove('show');currentImgKey=null;}
+function takePhoto(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('fileInput').click(),100);}
+function chooseGal(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('galleryFileInput').click(),100);}
+document.getElementById('fileInput').addEventListener('change',handleFiles);
+document.getElementById('galleryFileInput').addEventListener('change',handleFiles);
+async function handleFiles(e){
+    const f=e.target.files;if(!f.length||!currentImgKey)return;
+    const k=currentImgKey,exist=(imageCache[k]||[]).length;
+    if(exist>=2){showToast('❌ 每店最多2張','error');e.target.value='';currentImgKey=null;return;}
+    for(let j=0;j<Math.min(f.length,2-exist);j++){
+        showToast('📷 處理...','info');
+        const comp=await compress(f[j]),iid='i'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
+        await saveImg(k,iid,comp);if(!imageCache[k])imageCache[k]=[];imageCache[k].push({id:iid,data:comp,time:Date.now()});saveIK(k);
+        if(completedStores[k]){try{const et=await getExifTime(f[j]);if(et){completedStores[k].time=et;saveData();showToast(`⏰ 自動設定拍照時間`,'info');}}catch(ex){}}
     }
-    deleteImageFromDB(key,imgId).catch(console.error);
-    const d=JSON.parse(localStorage.getItem('sfsV14_imgKeys')||'{}');
+    e.target.value='';currentImgKey=null;renderList();renderCompleted();updateStats();renderGalTabs();renderGallery();showToast('✅ 圖片已保存','success');
+}
+
+// Delete image
+let _pd=null;
+function reqDel(key,id){_pd={key,id};showCF('確定要刪除此照片？\n\n此操作不可復原。',()=>doDel(_pd.key,_pd.id));}
+async function doDel(key,id){
+    if(imageCache[key]){imageCache[key]=imageCache[key].filter(im=>im.id!==id);if(!imageCache[key].length)delete imageCache[key];}
+    await delImg(key,id).catch(console.error);
+    const d=JSON.parse(localStorage.getItem('sfsV15_ik')||'{}');
     if(!(imageCache[key]||[]).length)delete d[key];else d[key]=true;
-    localStorage.setItem('sfsV14_imgKeys',JSON.stringify(d));
-    renderStoreList();renderCompletedList();renderGallery();updateStats();showToast('🗑️ 圖片已刪除','success');
+    localStorage.setItem('sfsV15_ik',JSON.stringify(d));
+    renderList();renderCompleted();updateStats();renderGalTabs();renderGallery();showToast('🗑️ 已刪除','success');
 }
 
-// 時間編輯
-function openTimeModal(key){_editingKey=key;
-    const ts=completedStores[key]?.time||Date.now();
-    const dt=new Date(ts);const pad=n=>String(n).padStart(2,'0');
-    document.getElementById('timeModalInput').value=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-    document.getElementById('timeModal').classList.add('show');
-}
-function closeTimeModal(){document.getElementById('timeModal').classList.remove('show');_editingKey=null;}
-function saveTimeEdit(){
-    if(!_editingKey)return;
-    const val=document.getElementById('timeModalInput').value,ts=new Date(val).getTime();
+// Time edit
+function openTm(key){_editKey=key;
+    const ts=completedStores[key]?.time||Date.now(),dt=new Date(ts),pad=n=>String(n).padStart(2,'0');
+    document.getElementById('tmInput').value=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    document.getElementById('tmOverlay').classList.add('show');}
+function closeTm(){document.getElementById('tmOverlay').classList.remove('show');_editKey=null;}
+function saveTmEdit(){if(!_editKey)return;
+    const val=document.getElementById('tmInput').value,ts=new Date(val).getTime();
     if(isNaN(ts)){showToast('❌ 無效時間','error');return;}
-    if(completedStores[_editingKey])completedStores[_editingKey].time=ts;
-    saveStoresData();closeTimeModal();renderStoreList();renderCompletedList();showToast('✅ 時間已更新','success');
-}
-document.getElementById('timeModalInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveTimeEdit();});
+    if(completedStores[_editKey])completedStores[_editKey].time=ts;saveData();closeTm();renderList();renderCompleted();showToast('✅ 時間已更新','success');}
+document.getElementById('tmInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveTmEdit();});
 
-// ============================================================
-// ===== Lightbox + 縮放 =====
-// ============================================================
-function openLightbox(sk,ix){
-    const imgs=imageCache[sk]||[];if(!imgs[ix])return;
-    lbImages=imgs;lbStoreKey=sk;lbIndex=ix;resetZoom();showLbImg();
-    document.getElementById('lightbox').classList.add('active');document.body.style.overflow='hidden';
-    initTouchListeners();
-}
-function closeLightbox(){
-    document.getElementById('lightbox').classList.remove('active');document.body.style.overflow='';resetZoom();removeTouchListeners();
-}
-function showLbImg(){
-    document.getElementById('lbImg').src=lbImages[lbIndex].data;
-    document.getElementById('lbCounter').textContent=`${lbIndex+1}/${lbImages.length}`;
-    document.getElementById('lbPrev').style.display=lbImages.length>1?'flex':'none';
-    document.getElementById('lbNext').style.display=lbImages.length>1?'flex':'none';
-    document.getElementById('lbDelBtn').style.display='flex';
-}
-function lbNav(dir){lbIndex=(lbIndex+dir+lbImages.length)%lbImages.length;resetZoom();showLbImg();}
-
-function toggleZoom(){zoomLevel=zoomLevel>1?1:2;if(zoomLevel===1){tx=0;ty=0;}applyZoom();}
-function zoomIn(){zoomLevel=Math.min(zoomLevel+0.5,4);applyZoom();}
-function zoomOut(){zoomLevel=Math.max(zoomLevel-0.5,1);if(zoomLevel===1){tx=0;ty=0;}applyZoom();}
-function resetZoom(){zoomLevel=1;tx=0;ty=0;applyZoom();}
-function applyZoom(){document.getElementById('lbImg').style.transform=`scale(${zoomLevel}) translate(${tx}px,${ty}px)`;}
-function deleteLightboxImage(){if(lbStoreKey&&lbImages[lbIndex]){requestDeleteImage(lbStoreKey,lbImages[lbIndex].id);closeLightbox();}}
-
-// 觸控
+// Lightbox
+function openLb(sk,ix){const imgs=imageCache[sk]||[];if(!imgs[ix])return;lbImages=imgs;lbSk=sk;lbIdx=ix;resetZ();showLbImg();
+    document.getElementById('lb').classList.add('active');document.body.style.overflow='hidden';initTouch();}
+function closeLb(){document.getElementById('lb').classList.remove('active');document.body.style.overflow='';resetZ();rmTouch();}
+function showLbImg(){document.getElementById('lbImg').src=lbImages[lbIdx].data;document.getElementById('lbCtr').textContent=`${lbIdx+1}/${lbImages.length}`;
+    document.getElementById('lbPrev').style.display=lbImages.length>1?'flex':'none';document.getElementById('lbNext').style.display=lbImages.length>1?'flex':'none';document.getElementById('lbDelBtn').style.display='flex';}
+function lbNav(dir){lbIdx=(lbIdx+dir+lbImages.length)%lbImages.length;resetZ();showLbImg();}
+function toggleZoom(){zL=zL>1?1:2;if(zL===1){tX=0;tY=0;}applyZ();}
+function zoomIn(){zL=Math.min(zL+.5,4);applyZ();}function zoomOut(){zL=Math.max(zL-.5,1);if(zL===1){tX=0;tY=0;}applyZ();}
+function resetZ(){zL=1;tX=0;tY=0;applyZ();}function applyZ(){document.getElementById('lbImg').style.transform=`scale(${zL}) translate(${tX}px,${tY}px)`;}
+function delLbImg(){if(lbSk&&lbImages[lbIdx]){reqDel(lbSk,lbImages[lbIdx].id);closeLb();}}
+// Touch zoom
 function getDist(t){const dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;return Math.sqrt(dx*dx+dy*dy);}
-function initTouchListeners(){
-    const im=document.getElementById('lbImg');
-    im.addEventListener('dblclick',onDblClick);im.addEventListener('touchstart',tsH,{passive:false});im.addEventListener('touchmove',tmH,{passive:false});im.addEventListener('touchend',teH);
-}
-function removeTouchListeners(){const im=document.getElementById('lbImg');im.removeEventListener('dblclick',onDblClick);im.removeEventListener('touchstart',tsH);im.removeEventListener('touchmove',tmH);im.removeEventListener('touchend',teH);}
-function onDblClick(){zoomLevel=zoomLevel>1?1:2;if(zoomLevel===1){tx=0;ty=0;}applyZoom();}
-let tsDist=0,tsZ=1,isPan=false,tSX=0,tSY=0,stTX=0,stTY=0;
-function tsH(e){if(e.touches.length===2){e.preventDefault();tsDist=getDist(e.touches);tsZ=zoomLevel;}else if(e.touches.length===1&&zoomLevel>1){isPan=true;tSX=e.touches[0].clientX;tSY=e.touches[0].clientY;stTX=tx;stTY=ty;}}
-function tmH(e){if(e.touches.length===2){e.preventDefault();const cd=getDist(e.touches),s=cd/tsDist;zoomLevel=Math.max(1,Math.min(4,tsZ*s));if(zoomLevel<=1){tx=0;ty=0;}applyZoom();}else if(e.touches.length===1&&isPan){e.preventDefault();const dx=e.touches[0].clientX-tSX,dy=e.touches[0].clientY-tSY;tx=stTX+dx*0.5;ty=stTY+dy*0.5;constrainPan();applyZoom();}}
-function teH(e){if(e.touches.length<2)isPan=false;}
-function constrainPan(){if(zoomLevel<=1){tx=0;ty=0;return;}const sw=window.innerWidth,sh=window.innerHeight,mx=sw*0.4*(zoomLevel-1),my=sh*0.4*(zoomLevel-1);tx=Math.max(-mx,Math.min(mx,tx));ty=Math.max(-my,Math.min(my,ty));}
-document.addEventListener('keydown',e=>{if(!lbStoreKey)return;if(e.key==='ArrowRight'&&lbIndex<lbImages.length-1)lbNav(1);if(e.key==='ArrowLeft'&&lbIndex>0)lbNav(-1);if(e.key==='Escape')closeLightbox();});
+function initTouch(){const im=document.getElementById('lbImg');im.addEventListener('dblclick',onDblClick);im.addEventListener('touchstart',tSH,{passive:false});im.addEventListener('touchmove',tMH,{passive:false});im.addEventListener('touchend',tEH);}
+function rmTouch(){const im=document.getElementById('lbImg');im.removeEventListener('dblclick',onDblClick);im.removeEventListener('touchstart',tSH);im.removeEventListener('touchmove',tMH);im.removeEventListener('touchend',tEH);}
+function onDblClick(){zL=zL>1?1:2;if(zL===1){tX=0;tY=0;}applyZ();}
+let tSD=0,tSZ=1,isP=false,tSX=0,tSY=0,stTX=0,stTY=0;
+function tSH(e){if(e.touches.length===2){e.preventDefault();tSD=getDist(e.touches);tSZ=zL;}else if(e.touches.length===1&&zL>1){isP=true;tSX=e.touches[0].clientX;tSY=e.touches[0].clientY;stTX=tX;stTY=tY;}}
+function tMH(e){if(e.touches.length===2){e.preventDefault();const cd=getDist(e.touches),s=cd/tSD;zL=Math.max(1,Math.min(4,tSZ*s));if(zL<=1){tX=0;tY=0;}applyZ();}else if(e.touches.length===1&&isP){e.preventDefault();const dx=e.touches[0].clientX-tSX,dy=e.touches[0].clientY-tSY;tX=stTX+dx*.5;tY=stTY+dy*.5;cPan();applyZ();}}
+function tEH(e){if(e.touches.length<2)isP=false;}
+function cPan(){if(zL<=1){tX=0;tY=0;return;}const sw=window.innerWidth,sh=window.innerHeight,mx=sw*.4*(zL-1),my=sh*.4*(zL-1);tX=Math.max(-mx,Math.min(mx,tX));tY=Math.max(-my,Math.min(my,tY));}
+document.addEventListener('keydown',e=>{if(!lbSk)return;if(e.key==='ArrowRight'&&lbIdx<lbImages.length-1)lbNav(1);if(e.key==='ArrowLeft'&&lbIdx>0)lbNav(-1);if(e.key==='Escape')closeLb();});
 
 // Confirm
-function showConfirm(msg,yFn){
-    document.getElementById('confirmMsg').msg?document.getElementById('confirmMsg').textContent=msg:void(document.getElementById('confirmMsg').textContent=msg);
-    const yb=document.getElementById('confYesBtn'),nb=yb.cloneNode(true);yb.parentNode.replaceChild(nb,yb);
-    nb.addEventListener('click',()=>{closeConfirm();yFn();});
-    document.getElementById('confirmDialog').classList.add('show');
+function showCF(msg,yF){
+    document.getElementById('cfMsg').textContent=msg;const yb=document.getElementById('cfYesBtn'),nb=yb.cloneNode(true);yb.parentNode.replaceChild(nb,yb);
+    nb.addEventListener('click',()=>{closeCf();yF();});document.getElementById('cfDialog').classList.add('show');
 }
-function closeConfirm(){document.getElementById('confirmDialog').classList.remove('show');}
+function closeCf(){document.getElementById('cfDialog').classList.remove('show');}
 
 // ============================================================
-// ===== 雲端同步 =====
+// SYNC
 // ============================================================
-async function forceUpload(){
-    if(!isFirebaseReady){showToast('❌ 未連接','error');return;}
-    const b=document.querySelector('.btn-upload');b.textContent='🔄...';b.disabled=true;
-    try{
+async function forceUpload(){if(!isFBReady){showToast('❌ 未連接','error');return;}
+    const b=document.querySelector('.sb-up');b.textContent='🔄...';b.disabled=true;try{
         const iU={};for(const[k,imgs]of Object.entries(imageCache))iU[k]=imgs.map(im=>im.data);
-        const payload={stores:completedStores,images:iU,timestamp:Date.now()};
-        await firebaseDB.ref('deliveryData').set(payload);
+        await fDB.ref('deliveryData').set({stores:completedStores,images:iU,timestamp:Date.now()});
         const tO=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
         showToast(`✅ 上載成功 ${Object.keys(completedStores).length}店 ${tO}張圖`,'success');
         document.getElementById('syncMsg').textContent='✅ '+new Date().toLocaleTimeString();
-    }catch(e){console.error('[Up]',e);showToast('❌ '+e.message,'error');}
-    finally{b.textContent='⬆ 上載';b.disabled=false;}
+    }catch(e){console.error('[Up]',e);showToast('❌ '+e.message,'error');}finally{b.textContent='⬆ 上載';b.disabled=false;}
 }
-async function forceDownload(){
-    if(!isFirebaseReady){showToast('❌ 未連接','error');return;}
-    const b=document.querySelector('.btn-download');b.textContent='🔄...';b.disabled=true;
-    try{
-        const snap=await firebaseDB.ref('deliveryData').once('value');const data=snap.val();
-        if(data&&data.stores){
-            completedStores={...data.stores};saveStoresData();
-            imageCache={};const nIK={};await clearAllImagesFromDB();
+async function forceDownload(){if(!isFBReady){showToast('❌ 未連接','error');return;}
+    const b=document.querySelector('.sb-down');b.textContent='🔄...';b.disabled=true;try{
+        const snap=await fDB.ref('deliveryData').once('value');const data=snap.val();
+        if(data&&data.stores){completedStores={...data.stores};saveData();imageCache={};const nIK={};await clearAllImg();
             if(data.images){let ti=0;
                 for(const[k,imgs]of Object.entries(data.images)){if(Array.isArray(imgs)&&imgs.length>0){
                     imageCache[k]=imgs.map((d,i)=>{ti++;return{id:'dl'+i+'_'+Date.now().toString(36),data:d,time:data.timestamp||Date.now()};});
-                    for(const im of imageCache[k])await saveImageToDB(k,im.id,im.data);
-                    nIK[k]=true;
-                }}
-                localStorage.setItem('sfsV14_imgKeys',JSON.stringify(nIK));
+                    for(const im of imageCache[k])await saveImg(k,im.id,im.data);nIK[k]=true;}}
+                localStorage.setItem('sfsV15_ik',JSON.stringify(nIK));
             }
-            updateStats();renderStoreList();renderCompletedList();renderGallery();
+            updateStats();renderList();renderCompleted();renderGalTabs();renderGallery();
             const tO=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
             showToast(`✅ 下載成功 ${Object.keys(completedStores).length}店 ${tO}張圖`,'success');
             document.getElementById('syncMsg').textContent='✅ '+new Date().toLocaleTimeString();
         }else{showToast('ℹ️ 雲端無數據','info');}
-    }catch(e){console.error('[DL]',e);showToast('❌ '+e.message,'error');}
-    finally{b.textContent='⬇ 下載';b.disabled=false;}
+    }catch(e){console.error('[DL]',e);showToast('❌ '+e.message,'error');}finally{b.textContent='⬇ 下載';b.disabled=false;}
 }
 
-// ============================================================
-// ===== 報告匯出（圖4風格：按日期分組卡片式） =====
-// ============================================================
+// Export Report (v05/v04 style: date-grouped cards)
 async function exportReport(){
-    const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);
-    if(!entries.length){showToast('ℹ️ 尚無數據','info');return;}
-    showToast('📄 生成中...','info');
-
-    // Group by day
-    const groups={};
-    for(const[k,d]of entries){
+    const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);if(!entries.length){showToast('ℹ️ 無數據','info');return;}
+    showToast('📄 生成...','info');
+    const groups={};for(const[k,d]of entries){
         const ld=k.lastIndexOf('-'),dk=k.substring(0,ld),sid=k.substring(ld+1);
-        if(!groups[dk])groups[dk]=[];
-        const imgs=imageCache[k]||[];
-        const addr=findAddr(dk,sid);
-        groups[dk].push({sid,k,d,imgs,addr:addr?addr.addr:''});
-    }
-
-    let html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>送貨報告</title>
+        if(!groups[dk])groups[dk]=[];groups[dk].push({sid,k,d,imgs:imageCache[k]||[],addr:findAddr(dk,sid)?.addr||''});}
+    let h=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>送貨報告</title>
     <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:-apple-system,sans-serif;padding:16px;max-width:720px;margin:0 auto;background:#fff;color:#333;}
-    h1{text-align:center;font-size:20px;color:#0071e3;margin-bottom:4px;}
-    .sub{text-align:center;color:#888;font-size:13px;margin-bottom:20px;}
+    h1{text-align:center;font-size:20px;color:#0071e3;margin-bottom:4px;}.sub{text-align:center;color:#888;font-size:13px;margin-bottom:20px;}
     .summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;}
-    .sum-box{text-align:center;padding:14px;background:#f0f9ff;border-radius:12px;}
-    .sum-num{font-size:28px;font-weight:800;color:#0071e3;}
-    .sum-lbl{font-size:11px;color:#888;margin-top:4px;}
-    .day-section{margin-bottom:24px;}
-    .day-header{background:linear-gradient(135deg,#0071e3,#5856d6);color:white;padding:12px 16px;border-radius:12px;font-size:16px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
-    .day-count{font-size:14px;opacity:0.85;font-weight:400;}
-    .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;box-shadow:0 1px 4px rgba(0,0,0,0.04);align-items:flex-start;}
-    .card-img{width:90px;height:90px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#f5f5f5;}
-    .card-body{flex:1;min-width:0;}
-    .card-sid{font-size:17px;font-weight:700;color:#0071e3;}
-    .card-addr{font-size:12px;color:#555;margin-top:3px;line-height:1.4;}
-    .card-time{color:#34c759;font-size:13px;font-weight:500;margin-top:4px;}
-    .footer{text-align:center;color:#aaa;font-size:12px;margin-top:30px;padding-top:16px;border-top:1px solid #eee;}
-    .pg{text-align:center;color:#888;font-size:12px;margin-top:16px;}
-    </style></head><body>
-    <h1>📦 Small Fan Stand 送貨完成報告</h1>
-    <div class="sub">生成時間：${new Date().toLocaleString('zh-TW')}</div>
-    <div class="summary"><div class="sum-box"><div class="sum-num">${entries.length}</div><div class="sum-lbl">已完成項目</div></div>
-    <div class="sum-box"><div class="sum-num">${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}</div><div class="sum-lbl">拍攝照片</div></div></div>`;
-
-    let globalIdx=0;
-    for(const dk of Object.keys(groups)){
-        const items=groups[dk],dName=DAY_NAMES[dk]||'',dl=getDayLabel(dk);
-        html+=`<div class="day-section">
-            <div class="day-header">${dl}日（週${dName}）－完成 <span class="day-count">${items.length} 項</span></div>`;
-        for(const item of items){
-            globalIdx++;
-            html+=`<div class="card">
-                ${item.imgs.length?`<img class="card-img" src="${item.imgs[0].data}" alt="">`:''}
-                <div class="card-body">
-                    <div class="card-sid">#${item.sid}${item.imgs.length?` <small style="color:#ff9500;">📷${item.imgs.length}</small>`:''}</div>
-                    ${item.addr?`<div class="card-addr">${item.addr}</div>`:''}
-                    <div class="card-time">✅ 完成時間: ${formatTime(item.d.time)}</div>
-                </div>
-            </div>`;
-        }
-        html+=`</div>`;
-    }
-
-    html+=`<div class="pg">第 1 頁 / 共 1 頁 | 總計 ${entries.length} 項完成 | 匯出時間：${new Date().toISOString().replace('T',' ').slice(0,19)}</div>
-    <div class="footer">Small Fan Stand Delivery System v14</div></body></html>`;
-
-    const blob=new Blob([html],{type:'text/html'}),a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);a.download=`送貨報告_${new Date().toISOString().slice(0,10)}.html`;
-    a.click();URL.revokeObjectURL(a.href);
-    showToast('✅ 報告已下載','success');
+    .sbx{text-align:center;padding:14px;background:#f0f9ff;border-radius:12px;}.sbn{font-size:28px;font-weight:800;color:#0071e3;}.sbl{font-size:11px;color:#888;margin-top:4px;}
+    .sec{margin-bottom:24px;}.sec-hdr{background:linear-gradient(135deg,#0071e3,#5856d6);color:#fff;padding:12px 16px;border-radius:12px;font-size:16px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+    .crd{background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;box-shadow:0 1px 4px rgba(0,0,0,.04);align-items:flex-start;}
+    .crd-img{width:90px;height:90px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#f5f5f5;}
+    .crd-b{flex:1;min-width:0;}.crd-sid{font-size:17px;font-weight:700;color:#0071e3;}
+    .crd-ad{font-size:12px;color:#555;margin-top:3px;line-height:1.4;}
+    .crd-tm{color:#34c759;font-size:13px;font-weight:500;margin-top:4px;}
+    .ft{text-align:center;color:#aaa;font-size:12px;margin-top:30px;padding-top:16px;border-top:1px solid #eee;}
+    .pg{text-align:center;color:#888;font-size:12px;margin-top:16px;}</style></head><body>
+    <h1>📦 Small Fan Stand 送貨完成報告</h1><div class="sub">生成：${new Date().toLocaleString('zh-TW')}</div>
+    <div class="summary"><div class="sbx"><div class="sbn">${entries.length}</div><div class="sbl">已完成</div></div>
+    <div class="sbx"><div class="sbn">${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}</div><div class="sbl">拍攝照片</div></div></div>`;
+    let gi=0;for(const dk of Object.keys(groups)){const itms=groups[dk],dn=DAY_NAMES[dk]||'',dl=getDL(dk);
+    h+=`<div class="sec"><div class="sec-hdr">${dl}日（週${dn}）－完成 <span style="font-size:14px;opacity:.85;">${itms.length} 項</span></div>`;
+    for(const item of itms){gi++;
+        h+=`<div class="crd">${item.imgs.length?`<img class="crd-img" src="${item.imgs[0].data}" alt="">`:''}<div class="crd-b"><div class="crd-sid">#${item.sid}${item.imgs.length?` <small style="color:#ff9500;">📷${item.imgs.length}</small>`:''}</div>${item.addr?`<div class="crd-ad">${item.addr}</div>`:''}<div class="crd-tm">✅ 完成: ${fmtTime(item.d.time)}</div></div></div>`;}
+    h+=`</div>`;}
+    h+=`<div class="pg">第 1 頁 / 共 1 頁 | 總計 ${entries.length} 項 | 匯出：${new Date().toISOString().slice(0,19).replace('T',' ')}</div><div class="ft">Small Fan Stand Delivery System v15</div></body></html>`;
+    const blob=new Blob([h],{type:'text/html'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`送貨報告_${new Date().toISOString().slice(0,10)}.html`;a.click();URL.revokeObjectURL(a.href);showToast('✅ 報告已下載','success');
 }
+function getDL(dk){const m={mon:'10/4',wed:'8/4',thu:'9/4',fri:'10/4'};return m[dk]||'--/-';}
 
-// ============================================================
-// ===== 重置 =====
-// ============================================================
-async function resetLocalData(){
-    const input=prompt('⚠️ 清除所有本地數據\n請輸入密碼：');if(input===null)return;
-    if(input!==ACCESS_PASSWORD){showToast('❌ 密碼錯誤','error');return;}
-    if(!confirm('確定清除？\n•已完成記錄\n•圖片緩存\n•不影響雲端'))return;
-    localStorage.removeItem('sfsV14_stores');localStorage.removeItem('sfsV14_imgKeys');
-    localStorage.removeItem('sfsV14_verified');completedStores={};imageCache={};
-    await clearAllImagesFromDB();
-    renderStoreList();renderCompletedList();renderGallery();updateStats();
-    document.getElementById('syncMsg').textContent='🔄 已重置';showToast('✅ 本地已重置','success');
-}
+// Reset
+async function resetLocal(){const inp=prompt('⚠️ 清除本地數據\n請輸入密碼：');if(inp===null)return;if(inp!==ACCESS_PWD){showToast('❌ 密碼錯','error');return;}if(!confirm('確定？\n•已完成\n•圖片緩存\n•不影響雲端'))return;
+    localStorage.removeItem('sfsV15_stores');localStorage.removeItem('sfsV15_ik');localStorage.removeItem('sfsV15_v');
+    completedStores={};imageCache={};await clearAllImg();
+    renderList();renderCompleted();renderGalTabs();renderGallery();updateStats();
+    document.getElementById('syncMsg').textContent='🔄 已重置';showToast('✅ 本地已重置','success');}
 
-// ============================================================
-// ===== Toast =====
-// ============================================================
-function showToast(msg,type='info'){
-    const c=document.getElementById('toastContainer'),t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);
-    setTimeout(()=>{t.style.animation='fadeOut 0.3s forwards';setTimeout(()=>t.remove(),300);},2500);
-}
+// Toast
+function showToast(msg,tp='info'){const c=document.getElementById('toastC'),t=document.createElement('div');t.className=`toast ${tp}`;t.textContent=msg;c.appendChild(t);
+    setTimeout(()=>{t.style.animation='fadeOut .3s forwards';setTimeout(()=>t.remove(),300);},2500);}
 
-// ============================================================
-// ===== 初始化 =====
-// ============================================================
-async function init(){
-    console.log('[Init v14]');
-    initFirebase();renderDayTabs();await openDB();loadAllData();
-    imageCache={};
-    const ik=JSON.parse(localStorage.getItem('sfsV14_imgKeys')||'{}');
-    for(const key of Object.keys(ik)){
-        try{const imgs=await getImagesFromDB(key);if(imgs?.length)imageCache[key]=imgs.map(r=>({id:r.imageId,data:r.imageData,time:r.time}));}catch(e){}
-    }
-    renderStoreList();renderCompletedList();renderGallery();updateStats();
-    console.log('[Init v14] ✅ Done');
-}
+// Init
+async function init(){initFB();renderDayTabs();await openDB();loadData();imageCache={};
+    const ik=JSON.parse(localStorage.getItem('sfsV15_ik')||'{}');
+    for(const key of Object.keys(ik)){try{const imgs=await getImgs(key);if(imgs?.length)imageCache[key]=imgs.map(r=>({id:r.imageId,data:r.imageData,time:r.time}));}catch(e){}}
+    renderList();renderCompleted();updateStats();renderGalTabs();renderGallery();
+    console.log('[Init v15] ✅ Done');}
 </script>
 </body>
 </html>
