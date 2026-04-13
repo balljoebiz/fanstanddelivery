@@ -491,17 +491,29 @@ function getExifTime(file){return new Promise(res=>{
     try{EXIF.getData(file,function(){
         const dt=EXIF.getTag(this,'DateTimeOriginal');if(dt){const ex=new Date(dt.replace(/\:/g,'-').replace(/ /,'T'));
             if(!isNaN(ex.getTime()))res(ex.getTime());else res(null);}else res(null);
-    });}catch(e){res(null);}setTimeout(()=>res(null),500);
+    });}catch(e){res(null);}setTimeout(()=>res(null),2000);
 });}
 function compressImage(file,maxSizeKB=300){return new Promise(res=>{
-    const r=new FileReader();
-    r.onload=e=>{const i=new Image();i.onload=()=>{
-        const c=document.createElement('canvas'),x=c.getContext('2d');
-        let w=i.width,h=i.height,m=1200;if(w>m||h>m){const s=Math.min(m/w,m/h);w*=s;h*=s;}
-        c.width=w;c.height=h;x.drawImage(i,0,0,w,h);let q=0.8,d=c.toDataURL('image/jpeg',q);
-        while(d.length/1024>maxSizeKB&&q>0.1){q-=0.1;d=c.toDataURL('image/jpeg',q);}
-        res(d);
-    };i.src=e.target.result;};r.readAsDataURL(file);
+    try{
+        const r=new FileReader();
+        r.onerror=()=>{console.warn('[IMG] FileReader failed');res(null);}
+        r.onload=e=>{try{
+            const i=new Image();
+            i.onerror=()=>{console.warn('[IMG] Image load failed');res(null);}
+            i.onload=()=>{try{
+                const c=document.createElement('canvas'),x=c.getContext('2d');
+                let w=i.width,h=i.height,m=1200;if(w>m||h>m){const s=Math.min(m/w,m/h);w=Math.round(w*s);h=Math.round(h*s);}
+                c.width=w;c.height=h;x.drawImage(i,0,0,w,h);
+                let q=0.8,d=c.toDataURL('image/jpeg',q);
+                while(d.length/1024>maxSizeKB&&q>0.1){q-=0.1;d=c.toDataURL('image/jpeg',q);
+                    if(q<=0.15)break;}
+                console.log(`[IMG] Compressed: ${Math.round(d.length/1024)}KB (q=${q})`);
+                res(d);
+            }catch(err){console.warn('[IMG] Canvas err:',err);res(null);}};
+            i.src=e.target.result;
+        }catch(err){console.warn('[IMG] Image create err:',err);res(null);}};
+        r.readAsDataURL(file);
+    }catch(err){console.warn('[IMG] compressImage err:',err);res(null);}
 });}
 
 // ---- 圖片添加模態框（拍照 / 相冊雙入口） ----
@@ -540,6 +552,13 @@ async function handleFileSelect(e){
     for(let i=0; i<Math.min(files.length, 2-existingImgs.length); i++){
         showToast('📷 處理中...','info');
         const compressed = await compressImage(files[i]);
+
+        // 壓縮失敗防護
+        if(!compressed){
+            showToast('❌ 圖片壓縮失敗，請重試','error');
+            e.target.value='';currentImgKey=null;return;
+        }
+
         const imgId='img_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
 
         // Save to DB
