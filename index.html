@@ -468,6 +468,42 @@ function closeChangePassword() {
     document.getElementById('passwordInput').focus();
 }
 
+async function ensureFirebaseReady(){
+    // 如果已經就緒，直接返回
+    if(isFirebaseReady && firebaseDB) return true;
+    
+    console.log('[PWD] Firebase 未就緒，嘗試重新初始化...');
+    
+    // 嘗試初始化（最多3次，每次間隔1秒）
+    for(let i=0; i<3; i++){
+        try{
+            if(!window.firebase){
+                console.warn(`[PWD] Firebase SDK 未載入 (${i+1}/3)`);
+                await new Promise(r=>setTimeout(r,1000));
+                continue;
+            }
+            if(!firebaseDB){
+                firebase.initializeApp({
+                    apiKey:"AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc",
+                    authDomain:"fan-stand-delivery.firebaseapp.com",
+                    databaseURL:"https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app",
+                    projectId:"fan-stand-delivery"
+                });
+                firebaseDB=firebase.database();
+            }
+            // 測試連接
+            await firebaseDB.ref('.info/connected').once('value');
+            isFirebaseReady=true;
+            console.log('[PWD] ✅ Firebase 重連成功');
+            return true;
+        }catch(e){
+            console.warn(`[PWD] 初始化嘗試 ${i+1}/3 失敗:`, e.message);
+            if(i<2) await new Promise(r=>setTimeout(r,1000));
+        }
+    }
+    return false;
+}
+
 async function doChangePassword() {
     const oldVal = document.getElementById('oldPwdInput').value;
     const newVal = document.getElementById('newPwdInput').value;
@@ -475,8 +511,9 @@ async function doChangePassword() {
 
     errEl.style.display='none';
 
-    // 先重新從雲端讀取最新密碼（避免緩存不一致）
-    if (isFirebaseReady && firebaseDB) {
+    // 確保 Firebase 已連接（自動重試）
+    const fbOk = await ensureFirebaseReady();
+    if(fbOk && firebaseDB){
         await loadCloudPassword();
     }
 
@@ -490,8 +527,8 @@ async function doChangePassword() {
         errEl.style.display='block';
         return;
     }
-    if (!isFirebaseReady || !firebaseDB) {
-        errEl.textContent='雲端未連接，無法修改密碼';
+    if (!fbOk || !firebaseDB) {
+        errEl.textContent='雲端連接失敗，請檢查網絡後重試';
         errEl.style.display='block';
         return;
     }
