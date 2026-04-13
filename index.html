@@ -449,9 +449,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('pwdInput').addEventListener('keypress',e=>{if(e.key==='Enter')checkPwd();});
     document.getElementById('oldPwdI').addEventListener('keypress',e=>{if(e.key==='Enter')doChgPwd();});
     document.getElementById('newPwdI').addEventListener('keypress',e=>{if(e.key==='Enter')doChgPwd();});
+    document.getElementById('fileInput').addEventListener('change',handleFiles);
+    document.getElementById('galleryFileInput').addEventListener('change',handleFiles);
 });
 window.addEventListener('load',async()=>{
-    let a=0,const iv=setInterval(async()=>{
+    let a=0;const iv=setInterval(async()=>{
         a++;if(isFBReady){clearInterval(iv);await loadCloudPwd();
             if(isVerified()){document.getElementById('pwdScreen').classList.add('hidden');document.getElementById('mainC').style.display='block';await init();}
             else document.getElementById('pwdInput').focus();}
@@ -598,7 +600,7 @@ function renderGalTabs(){
     for(const[k,imgs]of Object.entries(imageCache))
         items.push([k.split('-')[1],k]);
     items.sort((a,b)=>a[0].localeCompare(b[0],'zh-HK'));
-    el.innerHTML='<button class="gst-btn '+(galFilterSk===null||galFilterSk==='__all__'?'active':'')+' " onclick="filterGal(\'__all__',this)">全部</button>'
+    el.innerHTML=`<button class="gst-btn ${galFilterSk===null||galFilterSk==='__all__'?'active':''}" onclick="filterGal('__all__',this)">全部</button>`
         +items.slice(1).map(([lbl,sk])=>`<button class="gst-btn ${(galFilterSk===sk?'active':'')} ${imageCache[sk]?.length?'has-img':''}" style="position:relative;" onclick="filterGal('${sk}',this)">${lbl}</button>`).join('');
 }
 function filterGal(sk,bt){
@@ -636,14 +638,13 @@ function swPg(pid,bt){
     document.getElementById(pid).classList.add('active');if(bt)bt.classList.add('active');
     if(pid==='pgCompleted')renderCompleted();
     if(pid==='pgGallery'){renderGalTabs();renderGallery();}
+}
 
 // Image Modal (Bottom Sheet)
 function openIM(sk){currentImgKey=sk;document.getElementById('imTitle').textContent=`為 ${sk.split('-')[1]} 添加圖片`;document.getElementById('imgModal').classList.add('show');}
 function closeIModal(){document.getElementById('imgModal').classList.remove('show');currentImgKey=null;}
 function takePhoto(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('fileInput').click(),100);}
 function chooseGal(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('galleryFileInput').click(),100);}
-document.getElementById('fileInput').addEventListener('change',handleFiles);
-document.getElementById('galleryFileInput').addEventListener('change',handleFiles);
 async function handleFiles(e){
     const f=e.target.files;if(!f.length||!currentImgKey)return;
     const k=currentImgKey,exist=(imageCache[k]||[]).length;
