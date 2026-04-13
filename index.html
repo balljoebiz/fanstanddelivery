@@ -310,8 +310,8 @@
     <div class="img-modal-c">
         <div class="img-m-title" id="imTitle">添加圖片</div>
         <button class="img-m-btn photo" onclick="takePhoto()">📸 立即拍攝</button>
-        <button class="img-m-btn gallery" onclick="chooseGal()">🖼️ 從相冊選擇</button>
-        <button class="img-m-btn cancel" onclick="closeImModal()">取消</button>
+        <button class="img-m-btn gallery" onclick="chooseFromGallery()">🖼️ 從相冊選擇</button>
+        <button class="img-m-btn cancel" onclick="closeImgModal()">取消</button>
     </div>
 </div>
 <input type="file" id="fileInput" accept="image/*" capture="environment">
@@ -449,8 +449,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('pwdInput').addEventListener('keypress',e=>{if(e.key==='Enter')checkPwd();});
     document.getElementById('oldPwdI').addEventListener('keypress',e=>{if(e.key==='Enter')doChgPwd();});
     document.getElementById('newPwdI').addEventListener('keypress',e=>{if(e.key==='Enter')doChgPwd();});
-    document.getElementById('fileInput').addEventListener('change',handleFiles);
-    document.getElementById('galleryFileInput').addEventListener('change',handleFiles);
+    document.getElementById('fileInput').addEventListener('change',handleFileSelect);
+    document.getElementById('galleryFileInput').addEventListener('change',handleFileSelect);
 });
 window.addEventListener('load',async()=>{
     let a=0;const iv=setInterval(async()=>{
@@ -493,13 +493,81 @@ function getExifTime(file){return new Promise(res=>{
             if(!isNaN(ex.getTime()))res(ex.getTime());else res(null);}else res(null);
     });}catch(e){res(null);}setTimeout(()=>res(null),500);
 });}
-function compress(file,mKB=300){return new Promise(res=>{
-    const fr=new FileReader();fr.onload=e=>{const i=new Image();i.onload=()=>{
-        const c=document.createElement('canvas'),x=c.getContext('2d'),w=i.width,h=i.height,m=1200;if(w>m||h>m){const s=Math.min(m/w,m/h);w*=s;h*=s;}
-        c.width=w;c.height=h;x.drawImage(i,0,0,w,h);let q=.8,d=c.toDataURL('image/jpeg',q);
-        while(d.length/1024>mKB&&q>.1){q-=.1;d=c.toDataURL('image/jpeg',q);}res(d);
-    };i.src=e.target.result;};fr.readAsDataURL(file);
+function compressImage(file,maxSizeKB=300){return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=e=>{const i=new Image();i.onload=()=>{
+        const c=document.createElement('canvas'),x=c.getContext('2d');
+        let w=i.width,h=i.height,m=1200;if(w>m||h>m){const s=Math.min(m/w,m/h);w*=s;h*=s;}
+        c.width=w;c.height=h;x.drawImage(i,0,0,w,h);let q=0.8,d=c.toDataURL('image/jpeg',q);
+        while(d.length/1024>maxSizeKB&&q>0.1){q-=0.1;d=c.toDataURL('image/jpeg',q);}
+        res(d);
+    };i.src=e.target.result;};r.readAsDataURL(file);
 });}
+
+// ---- 圖片添加模態框（拍照 / 相冊雙入口） ----
+function openImgModal(storeKey){
+    currentImgKey = storeKey;
+    const sid = storeKey.split('-')[1];
+    document.getElementById('imTitle').textContent = `為 ${sid} 添加圖片`;
+    document.getElementById('imgModal').classList.add('show');
+}
+function closeImgModal(){
+    document.getElementById('imgModal').classList.remove('show');
+    currentImgKey = null;
+}
+function takePhoto(){
+    document.getElementById('imgModal').classList.remove('show');
+    setTimeout(() => document.getElementById('fileInput').click(), 100);
+}
+function chooseFromGallery(){
+    document.getElementById('imgModal').classList.remove('show');
+    setTimeout(() => document.getElementById('galleryFileInput').click(), 100);
+}
+
+async function handleFileSelect(e){
+    const files = e.target.files;
+    if(!files.length || !currentImgKey) return;
+
+    const key = currentImgKey;
+    const existingImgs = imageCache[key] || [];
+    if(existingImgs.length >= 2) {
+        showToast('❌ 每間店舖最多2張圖','error');
+        e.target.value='';
+        currentImgKey=null;
+        return;
+    }
+
+    for(let i=0; i<Math.min(files.length, 2-existingImgs.length); i++){
+        showToast('📷 處理中...','info');
+        const compressed = await compressImage(files[i]);
+        const imgId='img_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
+
+        // Save to DB
+        await saveImg(key, imgId, compressed);
+
+        // Update cache
+        if(!imageCache[key]) imageCache[key]=[];
+        imageCache[key].push({id:imgId,data:compressed,time:Date.now()});
+        saveIK(key);
+
+        // EXIF 自動時間
+        const storeEntry = completedStores[key];
+        if(storeEntry){
+            try{
+                const exifTs = await getExifTime(files[i]);
+                if(exifTs){
+                    storeEntry.time = exifTs;
+                    saveData();
+                    showToast(`⏰ 已自動設定為拍照時間`,'info');
+                }
+            }catch(ex){console.warn('EXIF err:',ex);}
+        }
+    }
+
+    e.target.value=''; currentImgKey=null;
+    renderList(); renderCompleted(); updateStats(); renderGalTabs(); renderGallery();
+    showToast('✅ 圖片已保存','success');
+}
 
 // ============================================================
 // RENDER: Day Tabs (v05 card style)
@@ -586,7 +654,7 @@ function renderCompleted(){
         return `<div class="ct-row">
             <span class="ct-r-time" onclick="openTm('${k}')">${fmtTime(d.time)} ✏️</span>
             <span class="ct-r-store">${sid}${imgs.length?`<span class="pb-count">📷${imgs.length}</span>`:''}</span>
-            <span class="ct-r-img">${imgs.length?imgs.map((im,idx)=>`<img src="${im.data}" width="32" height="32" style="border-radius:6px;margin-right:3px;" onclick="openLb('${k}',${idx})">`).join(''):(imgs.length<2?`<button onclick="openIM('${k}')" style="font-size:16px;background:#e8f4fd;border:1px dashed #0071e3;border-radius:6px;padding:2px 8px;cursor:pointer;color:#0071e3;">+ 圖片</button>`:'-')}</span>
+            <span class="ct-r-img">${imgs.length?imgs.map((im,idx)=>`<img src="${im.data}" width="32" height="32" style="border-radius:6px;margin-right:3px;" onclick="openLb('${k}',${idx})">`).join(''):(imgs.length<2?`<button onclick="openImgModal('${k}')" style="font-size:16px;background:#e8f4fd;border:1px dashed #0071e3;border-radius:6px;padding:2px 8px;cursor:pointer;color:#0071e3;">+ 圖片</button>`:'-')}</span>
         </div>`}).join('');
 }
 
@@ -655,41 +723,6 @@ function swPg(pid,bt){
 }
 
 // Image Modal (Bottom Sheet)
-function openIM(sk){currentImgKey=sk;document.getElementById('imTitle').textContent=`為 ${sk.split('-')[1]} 添加圖片`;document.getElementById('imgModal').classList.add('show');}
-function closeIModal(){document.getElementById('imgModal').classList.remove('show');currentImgKey=null;}
-function takePhoto(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('fileInput').click(),100);}
-function chooseGal(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('galleryFileInput').click(),100);}
-async function handleFiles(e){
-    const f=e.target.files;if(!f.length||!currentImgKey)return;
-    const k=currentImgKey,exist=(imageCache[k]||[]).length;
-    if(exist>=2){showToast('❌ 每店最多2張','error');e.target.value='';currentImgKey=null;return;}
-    try{
-        for(let j=0;j<Math.min(f.length,2-exist);j++){
-            showToast('📷 處理中...','info');
-            // 壓縮圖片（帶超時保護）
-            const comp=await new Promise((res,rej)=>{
-                const timer=setTimeout(()=>{rej(new Error('壓縮超時'));},15000);
-                compress(f[j]).then(d=>{clearTimeout(timer);res(d);}).catch(err=>{clearTimeout(timer);rej(err);});
-            });
-            const iid='i'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
-            await saveImg(k,iid,comp);
-            if(!imageCache[k])imageCache[k]=[];
-            imageCache[k].push({id:iid,data:comp,time:Date.now()});
-            saveIK(k);
-            console.log(`[IMG] Saved: ${k} #${imageCache[k].length}`);
-            if(completedStores[k]){try{const et=await getExifTime(f[j]);if(et){completedStores[k].time=et;saveData();showToast('⏰ 自動設定拍照時間','info');}}catch(ex){}}
-        }
-        e.target.value='';currentImgKey=null;
-        showToast('✅ 圖片已保存','success');
-        console.log('[IMG] Refreshing all views...');
-        renderList();renderCompleted();updateStats();renderGalTabs();renderGallery();
-    }catch(err){
-        console.error('[IMG] Error:',err);
-        currentImgKey=null;e.target.value='';
-        showToast(`❌ 圖片處理失敗: ${err.message}`,'error');
-    }
-}
-
 // Delete image
 let _pd=null;
 function reqDel(key,id){_pd={key,id};showCF('確定要刪除此照片？\n\n此操作不可復原。',()=>doDel(_pd.key,_pd.id));}
