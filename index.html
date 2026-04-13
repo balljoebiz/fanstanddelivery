@@ -49,13 +49,13 @@
         .day-stat.ds-done .ds-value{color:#34c759;} .day-stat.ds-todo .ds-value{color:#ff9500;}
 
         /* ===== Sync Bar ===== */
-        .sync-bar{display:flex;gap:8px;padding:0 4px;margin-bottom:18px;flex-wrap:wrap;}
+        .sync-bar{display:flex;gap:8px;padding:0 4px;margin-bottom:6px;flex-wrap:wrap;}
         .sync-btn{flex:1;min-width:72px;padding:12px 8px;border:none;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.25s;}
         .sb-up{background:linear-gradient(135deg,#007aff,#5856d6);color:white;}
         .sb-down{background:#5856d6;color:white;}
         .sb-reset{background:linear-gradient(135deg,#ff6b6b,#ee5a52);color:white;}
         .sb-exp{background:linear-gradient(135deg,#34c759,#30d158);color:white;}
-        .sync-msg{text-align:center;font-size:12px;color:#aaa;padding:4px;}
+        .sync-msg{text-align:center;font-size:12px;color:#aaa;padding:2px 0;margin-bottom:0;}
 
         /* ===== Store Card（v05風格） ===== */
         .store-list{} /* no extra wrapper */
@@ -626,7 +626,7 @@ function updateStats(){
 // ============================================================
 // RENDER: Store List (v05 card style)
 // ============================================================
-function fmtTime(ts){return new Date(ts).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).replace(/\//g,'/');}
+function fmtTime(ts){return new Date(ts).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(/\//g,'/');}
 function findAddr(dk,sid){const a=originalData[dk];if(!a)return null;return a.find(s=>s.id===sid)||null;}
 
 function renderList(){
@@ -648,7 +648,6 @@ function renderList(){
                     </div>
                 </div>
                 <div class="store-addr">${s.addr}</div>
-                ${isC?`<div class="sc-time-line"><span class="sc-time-txt" onclick="openTm('${k}')">✅ ${ts} ✏️</span></div>`:''}
             </div>
             <div class="sc-right-thumb" onclick="${fi?`openLb('${k}',0)`:''}" title="預覽">
                 ${fi?`<img src="${fi}" alt="">`:`<span class="no-img-icon">📷</span>`}
@@ -794,9 +793,20 @@ function showCF(msg,yF){
 function closeCf(){document.getElementById('cfDialog').classList.remove('show');}
 
 // ============================================================
+// Operation Password (0808)
+// ============================================================
+const OP_PWD='0808';
+async function confirmOpPw(op){
+    const inp=prompt(`🔒 ${op}操作\n請輸入操作密碼：`);
+    if(inp===null)return false;
+    if(inp!==OP_PWD){showToast('❌ 操作密碼錯','error');return false;}
+    return true;
+}
+
+// ============================================================
 // SYNC
 // ============================================================
-async function forceUpload(){if(!isFBReady){showToast('❌ 未連接','error');return;}
+async function forceUpload(){if(!await confirmOpPw('上載'))return;if(!isFBReady){showToast('❌ 未連接','error');return;}
     const b=document.querySelector('.sb-up');b.textContent='🔄...';b.disabled=true;try{
         const iU={};for(const[k,imgs]of Object.entries(imageCache))iU[k]=imgs.map(im=>im.data);
         await fDB.ref('deliveryData').set({stores:completedStores,images:iU,timestamp:Date.now()});
@@ -805,7 +815,7 @@ async function forceUpload(){if(!isFBReady){showToast('❌ 未連接','error');r
         document.getElementById('syncMsg').textContent='✅ '+new Date().toLocaleTimeString();
     }catch(e){console.error('[Up]',e);showToast('❌ '+e.message,'error');}finally{b.textContent='⬆ 上載';b.disabled=false;}
 }
-async function forceDownload(){if(!isFBReady){showToast('❌ 未連接','error');return;}
+async function forceDownload(){if(!await confirmOpPw('下載'))return;if(!isFBReady){showToast('❌ 未連接','error');return;}
     const b=document.querySelector('.sb-down');b.textContent='🔄...';b.disabled=true;try{
         const snap=await fDB.ref('deliveryData').once('value');const data=snap.val();
         if(data&&data.stores){completedStores={...data.stores};saveData();imageCache={};const nIK={};await clearAllImg();
@@ -857,7 +867,7 @@ async function exportReport(){
 function getDL(dk){const m={mon:'10/4',wed:'8/4',thu:'9/4',fri:'10/4'};return m[dk]||'--/-';}
 
 // Reset
-async function resetLocal(){const inp=prompt('⚠️ 清除本地數據\n請輸入密碼：');if(inp===null)return;if(inp!==ACCESS_PWD){showToast('❌ 密碼錯','error');return;}if(!confirm('確定？\n•已完成\n•圖片緩存\n•不影響雲端'))return;
+async function resetLocal(){if(!await confirmOpPw('重置'))return;if(!confirm('確定？\n•已完成\n•圖片緩存\n•不影響雲端'))return;
     localStorage.removeItem('sfsV15_stores');localStorage.removeItem('sfsV15_ik');localStorage.removeItem('sfsV15_v');
     completedStores={};imageCache={};await clearAllImg();
     renderList();renderCompleted();renderGalTabs();renderGallery();updateStats();
