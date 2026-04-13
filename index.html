@@ -944,7 +944,7 @@ async function genRptA(){
         </tr></thead>
         <tbody>${tbody}</tbody></table>
         <p style="text-align:center;margin-top:24px;font-size:16px;color:#888;">總計 ${total} 項</p>
-        <p style="text-align:center;margin-top:6px;font-size:11px;color:#bbb;">${now}</p></div>`;
+        <p style="text-align:center;margin-top:6px;font-size:11px;color:#bbb;">${new Date().toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}</p></div>`;
     try{
         const rc=document.getElementById('rptRender');rc.innerHTML=html;
         const canvas=await html2canvas(document.getElementById('rptAContent'),{scale:2,useCORS:true,backgroundColor:'#fff',logging:false});
