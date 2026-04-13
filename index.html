@@ -7,6 +7,44 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Report styles (hidden, used for canvas rendering) -->
+    <style id="rptStyles">
+        .rpt-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;}
+        .rpt-box{background:#fff;border-radius:16px;padding:28px 24px;text-align:center;max-width:320px;width:90%;}
+        .rpt-box h3{margin:0 0 18px;font-size:20px;color:#333;}
+        .rpt-btn{display:block;width:100%;padding:14px;margin:10px 0;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;color:#fff;}
+        .rpt-btn-a{background:#0071e3;}.rpt-btn-b{background:#34c759;}.rpt-btn-x{background:#eee;color:#666;font-size:14px;padding:10px;margin-top:16px;}
+        /* Render container - hidden from view */
+        #rptRender{position:fixed;left:-9999px;top:0;width:794px;background:#fff;font-family:-apple-system,'Segoe UI',sans-serif;}
+        /* Report A */
+        .ra-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;}
+        .ra-table th{background:#0071e3;color:#fff;padding:8px 6px;font-size:13px;text-align:left;}
+        .ra-table td{border-bottom:1px solid #e5e7eb;padding:6px;vertical-align:top;}
+        .ra-day-header{background:#f0f4ff;padding:8px 12px;font-weight:700;font-size:15px;color:#0071e3;border-left:4px solid #0071e3;margin:16px 0 6px;}
+        .ra-title{text-align:center;padding:24px 0 4px;}
+        .ra-title h2{margin:0;font-size:22px;color:#333;}
+        .ra-sub{text-align:center;color:#888;font-size:11px;padding:4px 0 16px;}
+        .ra-footer{text-align:center;color:#aaa;font-size:10px;padding:12px;border-top:1px solid #eee;margin-top:12px;}
+        /* Report B */
+        .rb-page{width:794px;min-height:1123px;padding:24px;box-sizing:border-box;background:#fff;page-break-after:always;}
+        .rb-title-area{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0071e3;padding-bottom:12px;margin-bottom:16px;}
+        .rb-title-area h2{margin:0;font-size:22px;color:#333;}
+        .rb-date-badge{background:#ff9500;color:#fff;padding:6px 14px;border-radius:20px;font-size:15px;font-weight:600;}
+        .rb-card{display:flex;gap:14px;padding:14px;margin:10px 0;background:#fafbfc;border-radius:12px;border-left:4px solid #34c759;align-items:flex-start;}
+        .rb-img-box{width:120px;height:120px;border-radius:10px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#e8eaed;}
+        .rb-img-box img{width:100%;height:100%;object-fit:cover;}
+        .rb-no-img{color:#bbb;font-size:13px;text-align:center;line-height:1.4;}
+        .rb-info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;}
+        .rb-store-id{font-size:17px;font-weight:700;color:#222;}
+        .rb-addr{font-size:13px;color:#555;line-height:1.35;}
+        .rb-time{font-size:12px;color:#34c759;font-weight:500;margin-top:2px;}
+        .rb-day-section{margin:14px 0;}
+        .rb-day-label{background:linear-gradient(135deg,#0071e3,#5856d6);color:#fff;padding:8px 14px;border-radius:8px;font-size:15px;font-weight:700;margin-bottom:10px;}
+        .rb-page-footer{margin-top:auto;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:11px;color:#888;}
+        .rb-empty-row{grid-column:1/-1;text-align:center;padding:30px;color:#ccc;font-size:14px;}
+    </style>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Helvetica Neue,sans-serif;background:#f5f5f7;color:#1d1d1f;min-height:100vh;-webkit-font-smoothing:antialiased;}
@@ -833,38 +871,8 @@ async function forceDownload(){if(!await confirmOpPw('下載'))return;if(!isFBRe
     }catch(e){console.error('[DL]',e);showToast('❌ '+e.message,'error');}finally{b.textContent='⬇ 下載';b.disabled=false;}
 }
 
-// Export Report (v05/v04 style: date-grouped cards)
-async function exportReport(){
-    const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);if(!entries.length){showToast('ℹ️ 無數據','info');return;}
-    showToast('📄 生成...','info');
-    const groups={};for(const[k,d]of entries){
-        const ld=k.lastIndexOf('-'),dk=k.substring(0,ld),sid=k.substring(ld+1);
-        if(!groups[dk])groups[dk]=[];groups[dk].push({sid,k,d,imgs:imageCache[k]||[],addr:findAddr(dk,sid)?.addr||''});}
-    let h=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>送貨報告</title>
-    <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:-apple-system,sans-serif;padding:16px;max-width:720px;margin:0 auto;background:#fff;color:#333;}
-    h1{text-align:center;font-size:20px;color:#0071e3;margin-bottom:4px;}.sub{text-align:center;color:#888;font-size:13px;margin-bottom:20px;}
-    .summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;}
-    .sbx{text-align:center;padding:14px;background:#f0f9ff;border-radius:12px;}.sbn{font-size:28px;font-weight:800;color:#0071e3;}.sbl{font-size:11px;color:#888;margin-top:4px;}
-    .sec{margin-bottom:24px;}.sec-hdr{background:linear-gradient(135deg,#0071e3,#5856d6);color:#fff;padding:12px 16px;border-radius:12px;font-size:16px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
-    .crd{background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;box-shadow:0 1px 4px rgba(0,0,0,.04);align-items:flex-start;}
-    .crd-img{width:90px;height:90px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#f5f5f5;}
-    .crd-b{flex:1;min-width:0;}.crd-sid{font-size:17px;font-weight:700;color:#0071e3;}
-    .crd-ad{font-size:12px;color:#555;margin-top:3px;line-height:1.4;}
-    .crd-tm{color:#34c759;font-size:13px;font-weight:500;margin-top:4px;}
-    .ft{text-align:center;color:#aaa;font-size:12px;margin-top:30px;padding-top:16px;border-top:1px solid #eee;}
-    .pg{text-align:center;color:#888;font-size:12px;margin-top:16px;}</style></head><body>
-    <h1>📦 Small Fan Stand 送貨完成報告</h1><div class="sub">生成：${new Date().toLocaleString('zh-TW')}</div>
-    <div class="summary"><div class="sbx"><div class="sbn">${entries.length}</div><div class="sbl">已完成</div></div>
-    <div class="sbx"><div class="sbn">${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}</div><div class="sbl">拍攝照片</div></div></div>`;
-    let gi=0;for(const dk of Object.keys(groups)){const itms=groups[dk],dn=DAY_NAMES[dk]||'',dl=getDL(dk);
-    h+=`<div class="sec"><div class="sec-hdr">${dl}日（週${dn}）－完成 <span style="font-size:14px;opacity:.85;">${itms.length} 項</span></div>`;
-    for(const item of itms){gi++;
-        h+=`<div class="crd">${item.imgs.length?`<img class="crd-img" src="${item.imgs[0].data}" alt="">`:''}<div class="crd-b"><div class="crd-sid">#${item.sid}${item.imgs.length?` <small style="color:#ff9500;">📷${item.imgs.length}</small>`:''}</div>${item.addr?`<div class="crd-ad">${item.addr}</div>`:''}<div class="crd-tm">✅ 完成: ${fmtTime(item.d.time)}</div></div></div>`;}
-    h+=`</div>`;}
-    h+=`<div class="pg">第 1 頁 / 共 1 頁 | 總計 ${entries.length} 項 | 匯出：${new Date().toISOString().slice(0,19).replace('T',' ')}</div><div class="ft">Small Fan Stand Delivery System v15</div></body></html>`;
-    const blob=new Blob([h],{type:'text/html'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`送貨報告_${new Date().toISOString().slice(0,10)}.html`;a.click();URL.revokeObjectURL(a.href);showToast('✅ 報告已下載','success');
-}
-function getDL(dk){const m={mon:'10/4',wed:'8/4',thu:'9/4',fri:'10/4'};return m[dk]||'--/-';}
+// Original exportReport - replaced by A/B system above
+async function exportReport(){openRptModal();}
 
 // Reset
 async function resetLocal(){if(!await confirmOpPw('重置'))return;if(!confirm('確定？\n•已完成\n•圖片緩存\n•不影響雲端'))return;
@@ -883,6 +891,96 @@ async function init(){initFB();renderDayTabs();await openDB();loadData();imageCa
     for(const key of Object.keys(ik)){try{const imgs=await getImgs(key);if(imgs?.length)imageCache[key]=imgs.map(r=>({id:r.imageId,data:r.imageData,time:r.time}));}catch(e){}}
     renderList();renderCompleted();updateStats();renderGalTabs();renderGallery();
     console.log('[Init v15] ✅ Done');}
+
+// ============================================================
+// REPORT SYSTEM
+// ============================================================
+function openRptModal(){document.getElementById('rptModal').style.display='flex';}
+function closeRptModal(){document.getElementById('rptModal').style.display='none';}
+
+// Report A: Table → JPG
+async function genRptA(){
+    closeRptModal();
+    const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);
+    if(!entries.length){showToast('❌ 尚無已完成項目','error');return;}
+    const days={},DAY_L={mon:'4/8 星期一',tue:'4/8 星期二',wed:'4/9 星期三',thu:'4/10 星期四',fri:'4/11 星期五',sat:'4/12 星期六',sun:'4/13 星期日'};
+    entries.forEach(([k,d])=>{const dk=k.substring(0,k.lastIndexOf('-'));if(!days[dk])days[dk]=[];days[dk].push({k,...d});});
+    let rows='';
+    Object.keys(days).forEach(dk=>{
+        const dl=DAY_L[dk]||dk;
+        rows+=`<div class="ra-day-header">${dl} (${days[dk].length} 間)</div><table class="ra-table"><tr><th>#</th><th>店號</th><th>地址</th><th>完成時間</th></tr>`;
+        days[dk].forEach((e,i)=>{const sid=e.k.substring(e.k.lastIndexOf('-')+1);
+            rows+=`<tr><td>${i+1}</td><td style="font-weight:600">${sid}</td><td>${findAddr(e.k)||''}</td><td>${fmtTime(e.time)}</td></tr>`;});
+        rows+='</table>';});
+    const now=new Date().toLocaleString('zh-TW');
+    const html=`<div id="rptAContent" style="width:794px;background:#fff;padding:24px;box-sizing:border-box;">
+        <div class="ra-title"><h2>📦 Small Fan Stand 送貨清單</h2></div>
+        <div class="ra-sub">生成：${now}</div>${rows}
+        <div class="ra-footer">共 ${entries.length} 間 | Small Fan Stand v15</div></div>`;
+    try{
+        const rc=document.getElementById('rptRender');rc.innerHTML=html;
+        const el=document.getElementById('rptAContent');
+        const canvas=await html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#fff',logging:false});
+        const link=document.createElement('a');link.download=`送貨清單_${new Date().toISOString().slice(0,10)}.jpg`;
+        link.href=canvas.toDataURL('image/jpeg',0.92);link.click();showToast('✅ 報告已下載','success');
+    }catch(err){console.error('[RA]',err);showToast('❌ 報告生成失敗','error');}
+}
+
+// Report B: Cards (6/page, A4, by day) → ZIP(JPG)
+async function genRptB(){
+    closeRptModal();
+    const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);
+    if(!entries.length){showToast('❌ 尚無已完成項目','error');return;}
+    showToast('⏳ 正在生成圖文報告...','info');
+    const days={};
+    entries.forEach(([k,d])=>{const dk=k.substring(0,k.lastIndexOf('-'));if(!days[dk])days[dk]=[];days[dk].push({k,...d});});
+    const DAY_L={mon:'4/8',tue:'4/8',wed:'4/9',thu:'4/10',fri:'4/11',sat:'4/12',sun:'4/13'};
+    const DAY_N={mon:'一',tue:'二',wed:'三',thu:'四',fri:'五',sat:'六',sun:'日'};
+    const PER_PAGE=6;
+    const zip=new JSZip();let pIdx=0,totalPages=0;
+    Object.keys(days).forEach(dk=>totalPages+=Math.ceil(days[dk].length/PER_PAGE));
+    for(const dk of Object.keys(days)){
+        const stores=days[dk],dayLabel=`${DAY_L[dk]||dk} 星期${DAY_N[dk]||''}`;
+        for(let si=0;si<stores.length;si+=PER_PAGE){
+            pIdx++;const pageStores=stores.slice(si,si+PER_PAGE);let cards='';
+            pageStores.forEach((e,idx)=>{
+                const sid=e.k.substring(e.k.lastIndexOf('-')+1),imgs=imageCache[e.k]||[];
+                const imgHtml=imgs.length?imgs.map(im=>`<img src="${im.data}" alt="">`).join(''):'<div class="rb-no-img">沒有圖片</div>';
+                cards+=`<div class="rb-card"><div class="rb-img-box">${imgHtml}</div>
+                    <div class="rb-info"><div class="rb-store-id">${idx+1+si}. ${sid}</div>
+                    <div class="rb-addr">${findAddr(e.k)||''}</div><div class="rb-time">✅ ${fmtTime(e.time)}</div></div></div>`;
+            });
+            for(let i=pageStores.length;i<PER_PAGE;i++)cards+=`<div class="rb-card" style="opacity:0"><div class="rb-img-box"></div><div class="rb-info"><div>&nbsp;</div><div>&nbsp;</div><div>&nbsp;</div></div></div>`;
+            const nowS=new Date().toLocaleString('zh-TW');
+            const html=`<div class="rb-page" id="rbp${pIdx}">
+                <div class="rb-title-area"><h2>Small Fan Stand 送貨報告</h2><div class="rb-date-badge">${dayLabel}</div></div>
+                <div class="rb-day-section"><div class="rb-day-label">${dayLabel} — 已完成 ${stores.length} 間</div>${cards}</div>
+                <div class="rb-page-footer"><span>第 ${pIdx} 頁 / 共 ${totalPages} 頁</span><span>生成：${nowS}</span></div></div>`;
+            try{
+                const rc=document.getElementById('rptRender');rc.innerHTML=html;
+                const canvas=await html2canvas(document.getElementById(`rbp${pIdx}`),{scale:2,useCORS:true,backgroundColor:'#fff',logging:false});
+                zip.file(`送貨報告_${String(pIdx).padStart(2,'0')}_${dayLabel.replace(/[/\s]/g,'_')}.jpg`,canvas.toDataURL('image/jpeg',0.92).split(',')[1],{base64:true});
+            }catch(err){console.error('[RB] Page error:',err);}
+        }
+    }
+    try{const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`送貨圖文報告_${new Date().toISOString().slice(0,10)}.zip`;a.click();URL.revokeObjectURL(a.href);showToast('✅ 圖文報告已下載（ZIP）','success');}
+    catch(err){console.error('[RB] ZIP:',err);showToast('❌ 打包失敗','error');}
+}
+
+function findAddr(key){
+    const ld=key.lastIndexOf('-'),sid=key.substring(ld+1),dk=key.substring(0,ld);
+    const stores=originalData[dk]||[];const s=stores.find(x=>x.id===sid);return s?s.addr:'';
+}
 </script>
+
+<!-- Report Modal -->
+<div class="rpt-modal" id="rptModal" style="display:none;" onclick="if(event.target===this)closeRptModal()">
+    <div class="rpt-box"><h3>📄 選擇報告類型</h3>
+        <button class="rpt-btn rpt-btn-a" onclick="genRptA()">📊 報告 A：清單版</button>
+        <button class="rpt-btn rpt-btn-b" onclick="genRptB()">📸 報告 B：圖文版</button>
+        <button class="rpt-btn rpt-btn-x" onclick="closeRptModal()">取消</button></div></div>
+
+<!-- Report Render Container (off-screen for html2canvas) -->
+<div id="rptRender"></div>
 </body>
 </html>
