@@ -638,7 +638,7 @@ function renderList(){
             <div class="cb-wrap"><div class="checkbox ${isC?'checked':''}" onclick="togComplete('${currentDay}','${s.id}')">${isC?'✓':''}</div></div>
             <div class="sc-body">
                 <div class="sc-header-row">
-                    <div class="seq-badge">${s.seq}</div>
+                    <div class="seq-badge">${i+1}</div>
                     <div class="store-info">
                         <div class="store-id">${s.id}</div>
                         <div class="store-meta">
@@ -647,9 +647,6 @@ function renderList(){
                         </div>
                     </div>
                 </div>
-                ${imgs.length>0?`<div class="sc-img-row">${imgs.map((im,idx)=>`
-                    <div class="sc-thumb-w"><img class="sc-thumb" src="${im.data}" onclick="openLb('${k}',${idx})" alt="">
-                    <button class="sc-thumb-del" onclick="event.stopPropagation();reqDel('${k}','${im.id}')">✕</button></div>`).join('')}</div>`:''}
                 <div class="store-addr">${s.addr}</div>
                 ${isC?`<div class="sc-time-line"><span class="sc-time-txt" onclick="openTm('${k}')">✅ ${ts} ✏️</span></div>`:''}
             </div>
