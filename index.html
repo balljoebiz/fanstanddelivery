@@ -663,13 +663,31 @@ async function handleFiles(e){
     const f=e.target.files;if(!f.length||!currentImgKey)return;
     const k=currentImgKey,exist=(imageCache[k]||[]).length;
     if(exist>=2){showToast('❌ 每店最多2張','error');e.target.value='';currentImgKey=null;return;}
-    for(let j=0;j<Math.min(f.length,2-exist);j++){
-        showToast('📷 處理...','info');
-        const comp=await compress(f[j]),iid='i'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
-        await saveImg(k,iid,comp);if(!imageCache[k])imageCache[k]=[];imageCache[k].push({id:iid,data:comp,time:Date.now()});saveIK(k);
-        if(completedStores[k]){try{const et=await getExifTime(f[j]);if(et){completedStores[k].time=et;saveData();showToast(`⏰ 自動設定拍照時間`,'info');}}catch(ex){}}
+    try{
+        for(let j=0;j<Math.min(f.length,2-exist);j++){
+            showToast('📷 處理中...','info');
+            // 壓縮圖片（帶超時保護）
+            const comp=await new Promise((res,rej)=>{
+                const timer=setTimeout(()=>{rej(new Error('壓縮超時'));},15000);
+                compress(f[j]).then(d=>{clearTimeout(timer);res(d);}).catch(err=>{clearTimeout(timer);rej(err);});
+            });
+            const iid='i'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
+            await saveImg(k,iid,comp);
+            if(!imageCache[k])imageCache[k]=[];
+            imageCache[k].push({id:iid,data:comp,time:Date.now()});
+            saveIK(k);
+            console.log(`[IMG] Saved: ${k} #${imageCache[k].length}`);
+            if(completedStores[k]){try{const et=await getExifTime(f[j]);if(et){completedStores[k].time=et;saveData();showToast('⏰ 自動設定拍照時間','info');}}catch(ex){}}
+        }
+        e.target.value='';currentImgKey=null;
+        showToast('✅ 圖片已保存','success');
+        console.log('[IMG] Refreshing all views...');
+        renderList();renderCompleted();updateStats();renderGalTabs();renderGallery();
+    }catch(err){
+        console.error('[IMG] Error:',err);
+        currentImgKey=null;e.target.value='';
+        showToast(`❌ 圖片處理失敗: ${err.message}`,'error');
     }
-    e.target.value='';currentImgKey=null;renderList();renderCompleted();updateStats();renderGalTabs();renderGallery();showToast('✅ 圖片已保存','success');
 }
 
 // Delete image
