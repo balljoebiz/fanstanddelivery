@@ -910,8 +910,8 @@ async function genRptA(){
         if(!groups[dk])groups[dk]=[];
         if(!groups[dk].includes(sid))groups[dk].push(sid);
     });
-    // 日期顯示映射（day key → 日期字符串）
-    const DL={mon:'4/8',tue:'4/8',wed:'4/8',thu:'4/9',fri:'4/10',sat:'4/10',sun:'4/13'};
+    // 日期顯示映射（2026年4月日曆：4/1=三, 4/8=三(wed), 4/9=四(thu), 4/10=五(fri), 4/13=一(mon)）
+    const DL={mon:'4/13',tue:'4/14',wed:'4/8',thu:'4/9',fri:'4/10',sat:'4/11',sun:'4/12'};
     // 排序日期順序
     const dayOrder=['mon','tue','wed','thu','fri','sat','sun'];
     let total=0,tbody='';
@@ -924,11 +924,13 @@ async function genRptA(){
     const now=new Date().toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
     const html=`<div id="rptAContent" style="width:794px;background:#fff;padding:48px;box-sizing:border-box;font-family:-apple-system,'PingFang SC','Microsoft JhengHei',sans-serif;">
         <h1 style="text-align:center;font-size:28px;font-weight:700;color:#222;margin-bottom:32px;letter-spacing:1px;">Small Fan Stand 送貨完成列表</h1>
+        <style>.ra-d{font-weight:700;color:#34c759!important;font-size:20px!important;vertical-align:top!important;}
+.ra-s{line-height:2.4!important;font-size:17px!important;word-break:break-all!important;}.ra-c{font-weight:700;color:#0071e3!important;font-size:22px!important;text-align:center!important;vertical-align:top!important;}</style>
         <table style="width:100%;border-collapse:collapse;border:2px solid #e0e0e0;">
         <thead><tr style="background:#f7f7f7;">
-            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:14%;color:#333;">日期</th>
+            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:12%;color:#333;">日期</th>
             <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;color:#333;">店號</th>
-            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:12%;color:#333;">數量</th>
+            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:10%;color:#333;">數量</th>
         </tr></thead>
         <tbody>${tbody}</tbody></table>
         <p style="text-align:center;margin-top:24px;font-size:16px;color:#888;">總計 ${total} 項</p>
@@ -954,8 +956,8 @@ async function genRptB(){
         if(!days[dk])days[dk]=[];
         days[dk].push({k,sid:k.substring(k.lastIndexOf('-')+1),time:d.time,imgs:imageCache[k]||[]});
     });
-    // 修正日期映射：day key → 正確日期
-    const DL={mon:'4/8',tue:'4/8',wed:'4/8',thu:'4/9',fri:'4/10',sat:'4/10',sun:'4/13'};
+    // 修正日期映射（2026年4月日曆）
+    const DL={mon:'4/13',tue:'4/14',wed:'4/8',thu:'4/9',fri:'4/10',sat:'4/11',sun:'4/12'};
     const DN={mon:'一',tue:'二',wed:'三',thu:'四',fri:'五',sat:'六',sun:'日'};
     const PER_PAGE=6,zip=new JSZip();
     let gIdx=0; // 全局頁碼（跨日期累計）
