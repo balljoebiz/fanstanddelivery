@@ -919,27 +919,24 @@ async function genRptA(){
     let total=0,tbody='';
     sortedDates.forEach(ds=>{
         const sids=groups[ds];total+=sids.length;
-        // 等寬格子表格：每行剛好5間，不足補空格
-        let rows='';
-        for(let i=0;i<sids.length;i+=5){
-            const row=sids.slice(i,i+5);
-            while(row.length<5)row.push('');
-            rows+='<tr>'+row.map(s=>`<td class="ra-cell">${s}</td>`).join('')+'</tr>';
-        }
-        const nRows=Math.ceil(sids.length/5);
-        tbody+=`<tr><td class="ra-d" rowspan="${nRows}">${ds}</td><td colspan="2"><table style="width:100%;border-collapse:collapse;">${rows}</table></td></tr>`;
+        // 純文字：逗號分隔，每5個換行（復刻範例）
+        let txt=sids.join(', ');
+        const parts=[];
+        for(let i=0;i<sids.length;i+=5)parts.push(sids.slice(i,i+5).join(', '));
+        tbody+=`<tr><td class="ra-d">${ds}</td><td class="ra-s">${parts.join('<br>')}</td><td class="ra-c">${sids.length}</td></tr>`;
     });
         
     const html=`<div id="rptAContent" style="width:794px;background:#fff;padding:48px;box-sizing:border-box;font-family:-apple-system,'PingFang SC','Microsoft JhengHei',sans-serif;">
         <h1 style="text-align:center;font-size:28px;font-weight:700;color:#222;margin-bottom:32px;letter-spacing:1px;">Small Fan Stand 送貨完成列表</h1>
         <style>
         .ra-d{font-weight:700;color:#34c759!important;font-size:20px!important;vertical-align:middle!important;border:1px solid #e0e0e0!important;}
-        .ra-cell{text-align:center!important;font-size:16px!important;font-weight:500!important;padding:10px 4px!important;border:1px solid #e0e0e0!important;min-width:0!important;word-break:break-all!important;}
+        .ra-s{font-size:16px!important;line-height:1.85!important;padding:12px 10px!important;border:1px solid #e0e0e0!important;text-align:left!important;word-break:break-all!important;letter-spacing:.5px!important;}
+        .ra-c{text-align:center;font-weight:700;color:#007aff!important;font-size:18px!important;vertical-align:middle;border:1px solid #e0e0e0!important;}
         </style>
         <table style="width:100%;border-collapse:collapse;border:2px solid #e0e0e0;">
         <thead><tr style="background:#f7f7f7;">
             <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:14%;color:#333;">日期</th>
-            <th style="border:1px solid #ddd;padding:14px 8px;font-size:17px;color:#333;">店號（每行5間）</th>
+            <th style="border:1px solid #ddd;padding:14px 8px;font-size:17px;color:#333;">店號</th>
             <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:12%;color:#333;">數量</th>
         </tr></thead>
         <tbody>${tbody}</tbody></table>
