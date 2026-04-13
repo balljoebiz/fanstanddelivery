@@ -3,87 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SFS 送貨系統 v13</title>
+    <title>SFS 送貨系統 v14</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; padding-bottom: 80px; overflow-x: hidden; }
-        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 15px 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header h1 { font-size: 20px; font-weight: 600; }
-        .day-selector { display: flex; gap: 10px; margin-top: 10px; overflow-x: auto; padding-bottom: 5px; }
-        .day-btn { padding: 8px 16px; border: none; border-radius: 20px; background: rgba(255,255,255,0.1); color: white; font-size: 14px; cursor: pointer; white-space: nowrap; transition: all 0.3s; }
-        .day-btn.active { background: #0071e3; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; color:#333; overflow-x:hidden; }
 
-        /* Stats */
-        .stats-row { display: flex; gap: 10px; padding: 15px; background: white; margin: 15px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .stat-item { flex: 1; text-align: center; padding: 12px 8px; background: #f8f9fa; border-radius: 12px; }
-        .stat-num { font-size: 24px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: #86868b; margin-top: 4px; }
-
-        /* Sync */
-        .sync-section { padding: 0 15px 15px; display:flex; flex-wrap:wrap; gap:8px; }
-        .sync-btn { flex:1; min-width:90px; padding: 14px 8px; border: none; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .sync-upload { background: #0071e3; color: white; }
-        .sync-download { background: #5856d6; color: white; }
-        .sync-reset { background: linear-gradient(135deg,#ff6b6b,#ee5a52); color: white; }
-        .sync-export { background: linear-gradient(135deg,#34c759,#30d158); color: white; }
-        .sync-status { text-align:center; font-size:13px; color:#86868b; padding:8px; clear:both; }
-
-        /* Store Card */
-        .store-list { padding: 15px; }
-        .day-section { display:none; }
-        .day-section.active { display:block; }
-        .store-card { background: white; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.2s; }
-        .store-card.completed { opacity:0.75; background:#f0f9ff; }
-        .store-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-        .store-info { flex:1; min-width:0; }
-        .store-id { font-size:22px; font-weight:700; color:#0071e3; }
-        .store-addr { font-size:11px; color:#86868b; margin-top:2px; line-height:1.3; word-break:break-word; }
-        .complete-btn { width:40px; height:40px; border-radius:50%; border:3px solid #e0e0e0; background:white; cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; font-size:18px; color:white; flex-shrink:0; }
-        .complete-btn.completed { background:#34c759; border-color:#34c759; }
-
-        /* Time row */
-        .time-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-top:1px solid #eee; margin-top:4px; }
-        .time-label { font-size:12px; color:#86868b; }
-        .time-value { font-size:13px; color:#34c759; font-weight:500; cursor:pointer; padding:4px 10px; border-radius:8px; transition:all 0.2s; }
-        .time-value:hover { background:#f0f0f5; }
-        .edit-icon { font-size:12px; margin-left:4px; color:#999; }
-
-        /* Image Section */
-        .img-section { margin-top:10px; }
-        .img-label { font-size:12px; color:#86868b; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; }
-        .img-thumbs { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-        .img-thumb-wrap { position:relative; }
-        .img-thumb { width:70px; height:70px; border-radius:10px; object-fit:cover; cursor:pointer; border:2px solid transparent; transition:all 0.2s; }
-        .img-thumb:hover { transform:scale(1.05); }
-        .img-del-btn { position:absolute; top:-6px; right:-6px; width:20px; height:20px; background:#ff3b30; color:white; border-radius:50%; border:none; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; opacity:0; transition:opacity 0.2s; z-index:5; }
-        .img-thumb-wrap:hover .img-del-btn { opacity:1; }
-        .img-add-btn { width:70px; height:70px; border-radius:10px; border:2px dashed #ccc; background:#fafafa; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:24px; color:#999; transition:all 0.2s; flex-shrink:0; }
-        .img-add-btn:hover { border-color:#0071e3; color:#0071e3; }
-
-        /* Tabs */
-        .tab-bar { position:fixed; bottom:0; left:0; right:0; background:white; display:flex; box-shadow:0 -2px 10px rgba(0,0,0,0.1); z-index:200; }
-        .tab-item { flex:1; padding:12px 0; text-align:center; cursor:pointer; border:none; background:transparent; color:#86868b; font-size:11px; transition:all 0.2s; }
-        .tab-item.active { color:#0071e3; }
-        .tab-icon { font-size:22px; margin-bottom:2px; }
-        .page { display:none; }
-        .page.active { display:block; }
-
-        /* Completed List */
-        .completed-time { color:#34c759; font-size:13px; font-weight:500; cursor:pointer; padding:2px 6px; border-radius:6px; transition:background 0.2s; }
-        .completed-time:hover { background:#f0f0f5; }
-        .completed-img-count { font-size:11px; background:#ff9500; color:white; padding:2px 8px; border-radius:10px; margin-left:8px; }
-
-        /* Gallery Grid - 點擊進入預覽，長按刪除 */
-        .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-        .gallery-item { aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer; position:relative; }
-        .gallery-item img { width:100%; height:100%; object-fit:cover; }
-        .gallery-del-overlay { position:absolute; inset:0; background:rgba(255,59,48,0.7); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s; font-size:28px; color:white; z-index:2; }
-        .gallery-del-hint { position:absolute; bottom:4px; left:0; right:0; text-align:center; font-size:10px; color:rgba(255,255,255,0.7); pointer-events:none; z-index:3; }
-
-        /* Password Screen */
+        /* ===== Password Screen ===== */
         .password-screen { position:fixed; inset:0; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); display:flex; align-items:center; justify-content:center; z-index:9999; }
         .password-screen.hidden { display:none; }
         .password-box { background:white; padding:40px 30px; border-radius:20px; text-align:center; width:90%; max-width:350px; }
@@ -93,88 +21,206 @@
         .password-input:focus { border-color:#667eea; outline:none; }
         .password-btn { width:100%; padding:14px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; }
         .password-error { color:#ff3b30; font-size:14px; margin-top:10px; display:none; }
-        .pwd-change-link { color:#667eea; font-size:13px; margin-top:16px; cursor:pointer; text-decoration:underline; }
+        .pwd-change-link { color:#667eea; font-size:13px; margin-top:16px; cursor:pointer; text-decoration:underline; display:inline-block;padding:4px 8px; }
 
-        /* Change Password Screen（獨立全屏） */
+        /* ===== Change Password（全屏）===== */
         .chgpwd-screen { position:fixed; inset:0; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); display:none; align-items:center; justify-content:center; z-index:99999; }
         .chgpwd-screen.active { display:flex; animation:fadeInUp 0.3s ease; }
         .chgpwd-box { background:white; padding:40px 30px; border-radius:20px; text-align:center; width:90%; max-width:350px; }
         .chgpwd-title { font-size:18px; font-weight:600; margin-bottom:20px; color:#333; }
         .chgpwd-input { width:100%; padding:12px 14px; border:2px solid #e0e0e0; border-radius:10px; font-size:16px; margin-bottom:12px; text-align:center; letter-spacing:4px; }
-        .chgpwd-input:focus { border-color:#667eea; outline:none; }
         .chgpwd-btn { width:100%; padding:14px; background:#34c759; color:white; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; margin-top:8px; }
-        .chgpwd-cancel { width:100%; padding:12px; background:#f0f0f5; color:#333; border:none; border-radius:10px; font-size:14px; cursor:pointer; margin-top:8px; }
         .chgpwd-error { color:#ff3b30; font-size:13px; margin-top:12px; display:none; }
-        .chgpwd-back { color:#667eea; font-size:13px; margin-top:16px; cursor:pointer; text-decoration:underline; }
+        .chgpwd-back { color:#667eea; font-size:13px; margin-top:16px; cursor:pointer; text-decoration:underline; display:inline-block;padding:4px 8px; }
 
-        /* Image Add Modal（拍照 / 相冊選擇） */
-        .img-modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99997; display:none; align-items:center; justify-content:center; }
+        /* ===== Main Header（圖5風格） ===== */
+        .app-header { background:#fff; padding:18px 16px 14px; position:sticky; top:0; z-index:100; box-shadow:0 1px 6px rgba(0,0,0,0.08); }
+        .app-title-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+        .app-title { font-size:22px; font-weight:700; color:#222; }
+        .app-subtitle { font-size:13px; color:#888; margin-top:2px; }
+
+        /* Date Badge */
+        .date-badge { background:linear-gradient(135deg,#ff9500,#ff6b00); color:white; padding:5px 11px; border-radius:14px; font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; }
+
+        /* Day Tabs（帶完成率） */
+        .day-tabs { display:flex; gap:6px; margin-top:12px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+        .day-tabs::-webkit-scrollbar{display:none;}
+        .day-tab { padding:8px 12px; border:2px solid #e0e0e0; border-radius:12px; background:white; cursor:pointer; white-space:nowrap; transition:all 0.25s; min-width:fit-content; text-align:left; }
+        .day-tab .dt-date { font-size:12px; font-weight:700; color:#333; }
+        .day-tab .dt-day { font-size:10px; color:#888; }
+        .day-tab .dt-count { font-size:11px; color:#0071e3; font-weight:600; margin-top:1px; }
+        .day-tab.active { border-color:#0071e3; background:#f0f8ff; }
+        .day-tab.active .dt-date { color:#0071e3; }
+
+        /* Stats Grid（4格，參照圖5） */
+        .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:12px 16px; }
+        .stat-box { background:white; border-radius:14px; padding:14px 12px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+        .stat-label { font-size:11px; color:#888; margin-bottom:4px; }
+        .stat-num-row { display:flex; align-items:baseline; justify-content:center; gap:3px; }
+        .stat-num-big { font-size:28px; font-weight:800; line-height:1; }
+        .stat-num-small { font-size:13px; color:#999; font-weight:500; }
+        .sb-green .stat-num-big { color:#34c759; }
+        .sb-orange .stat-num-big { color:#ff9500; }
+        .sb-blue .stat-num-big { color:#0071e3; }
+
+        /* Sync Buttons */
+        .sync-bar { display:flex; gap:8px; padding:0 16px 12px; flex-wrap:wrap; }
+        .sync-btn { flex:1; min-width:80px; padding:12px 6px; border:none; border-radius:12px; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+        .btn-upload { background:#0071e3;color:white; } .btn-download { background:#5856d6;color:white; }
+        .btn-reset { background:#ff6b6b;color:white; } .btn-export { background:#34c759;color:white; }
+        .sync-msg { text-align:center; font-size:12px;color:#aaa;padding:4px 16px 10px; clear:both; }
+
+        /* ===== Store Card（圖5風格：左-中-右佈局） ===== */
+        .store-list { padding:8px 16px 90px; }
+        .store-card { background:white; border-radius:14px; padding:12px; margin-bottom:10px;
+            display:flex; align-items:flex-start; gap:10px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.07); transition:all 0.2s; }
+        .store-card.completed { opacity:0.85; }
+
+        /* Left: 序號+✓+店號 */
+        .sc-left { display:flex; align-items:center; gap:6px; flex-shrink:0; min-width:70px; }
+        .sc-check { width:26px;height:26px;border-radius:50%;border:2.5px solid #ddd;background:#fff;
+            display:flex;align-items:center;justify-content:center;font-size:14px;color:white;cursor:pointer;flex-shrink:0;transition:all 0.3s; }
+        .sc-check.done { background:#34c759;border-color:#34c759; }
+        .sc-id { font-size:17px;font-weight:700;color:#0071e3;white-space:nowrap;flex-shrink:0;min-width:48px;text-align:right;}
+
+        /* Middle: 日期標籤 + 地址 */
+        .sc-mid { flex:1; min-width:0; }
+        .sc-day-tag { display:inline-flex; align-items:center; gap:4px;
+            background:#f0f0f5; padding:2px 8px; border-radius:8px; font-size:10px; color:#888;margin-bottom:4px; }
+        .sc-dj-btn { background:#5856d6;color:white;border:none;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:600;cursor:pointer;line-height:1.4; }
+        .sc-addr { font-size:12px; color:#555; line-height:1.35; word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+        .sc-time-row { display:flex;align-items:center;gap:4px;margin-top:4px; }
+        .sc-time { font-size:11px;color:#34c759;font-weight:500;cursor:pointer;padding:2px 6px;border-radius:6px;transition:background 0.2s; }
+        .sc-time:hover { background:#f0f9ff; }
+
+        /* Right: 縮略圖 */
+        .sc-right { flex-shrink:0; width:56px; height:56px; border-radius:10px; overflow:hidden; background:#f8f9fa;
+            display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer; }
+        .sc-right img { width:100%;height:100%;object-fit:cover; }
+        .sc-no-img { font-size:24px;color:#ddd; }
+        .sc-img-del { position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:#ff3b30;
+            color:white;border-radius:50%;border:none;font-size:10px;display:flex;align-items:center;justify-content:center;
+            opacity:0;transition:opacity 0.2s;z-index:2;cursor:pointer;line-height:1;padding:0;}
+        .sc-right:hover .sc-img-del { opacity:1; }
+
+        /* Image Add Area in Card */
+        .sc-img-add-area { margin-top:8px; border-top:1px solid #eee; padding-top:8px; }
+        .sc-img-thumbs { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+        .sc-thumb { width:64px;height:64px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid transparent;transition:transform 0.15s; }
+        .sc-thumb:hover { transform:scale(1.05); }
+        .sc-thumb-wrap { position:relative; }
+        .sc-thumb-del { position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:#ff3b30;color:white;border-radius:50%;
+            border:none;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;line-height:1;opacity:0;transition:opacity 0.2s;}
+        .sc-thumb-wrap:hover .sc-thumb-del { opacity:1; }
+        .sc-add-btn { width:64px;height:64px;border-radius:8px;border:2px dashed #ccc;background:#fafafa;cursor:pointer;
+            display:flex;align-items:center;justify-content:center;font-size:22px;color:#bbb;transition:all 0.2s;flex-shrink:0; }
+        .sc-add-btn:hover { border-color:#0071e3;color:#0071e3; }
+
+        /* ===== Tab Bar ===== */
+        .tab-bar { position:fixed;bottom:0;left:0;right:0;background:white;display:flex;
+            box-shadow:0 -2px 10px rgba(0,0,0,0.08);z-index:200; }
+        .tab-item { flex:1;padding:10px 0;text-align:center;cursor:pointer;border:none;background:transparent;color:#999;font-size:10px;transition:all 0.2s; }
+        .tab-item.active { color:#0071e3; }
+        .tab-icon { font-size:20px;display:block;margin-bottom:2px; }
+        .page { display:none; padding-bottom:70px; }
+        .page.active { display:block; }
+
+        /* Completed Page（卡片列表） */
+        .completed-list { padding:8px 16px 80px; }
+        .comp-card { background:white;border-radius:14px;padding:12px;margin-bottom:10px;
+            display:flex;align-items:flex-start;gap:10px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
+            animation:fadeInUp 0.3s ease; }
+        .cc-left { flex-shrink:0; }
+        .cc-check { width:28px;height:28px;border-radius:50%;background:#34c759;color:white;
+            display:flex;align-items:center;justify-content:center;font-size:15px; }
+        .cc-info { flex:1;min-width:0; }
+        .cc-id { font-size:17px;font-weight:700;color:#333; }
+        .cc-meta { display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap; }
+        .cc-day { font-size:11px;color:#888;background:#f0f0f5;padding:1px 6px;border-radius:6px; }
+        .cc-time { font-size:12px;color:#34c759;font-weight:500;cursor:pointer;padding:2px 6px;border-radius:6px; }
+        .cc-addr { font-size:11px;color:#777;margin-top:3px;line-height:1.3;word-break:break-all; }
+        .cc-img-wrap { width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f5f5f5;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+        .cc-img-wrap img { width:100%;height:100%;object-fit:cover; }
+        .cc-img-n { font-size:20px;color:#ddd; }
+        .cc-empty { text-align:center;padding:40px;color:#aaa;font-size:14px; }
+
+        /* Gallery Page */
+        .gallery-page { padding:8px 16px 80px; }
+        .gallery-header { font-size:16px;font-weight:600;color:#333;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
+        .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+        .gal-item { aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;position:relative; }
+        .gal-item img { width:100%;height:100%;object-fit:cover; }
+        .gal-del-overlay { position:absolute;inset:0;background:rgba(255,59,48,0.65);
+            display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;
+            font-size:28px;color:white;z-index:2;pointer-events:auto; }
+        .gal-hint { position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:9px;color:rgba(255,255,255,0.7);z-index:3;pointer-events:none; }
+
+        /* Image Modal（拍照 / 相冊） */
+        .img-modal { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99997;display:none;align-items:center;justify-content:center; }
         .img-modal.show { display:flex; }
-        .img-modal-content { background:white; border-radius:18px; padding:24px; width:85%; max-width:300px; text-align:center; }
-        .img-modal-title { font-size:17px; font-weight:600; margin-bottom:16px; color:#333; }
-        .img-modal-btn { width:100%; padding:16px; border:none; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer; margin-bottom:10px; transition:all 0.2s; }
-        .img-modal-btn.photo { background:#0071e3; color:white; }
-        .img-modal-btn.gallery { background:#5856d6; color:white; }
-        .img-modal-btn.cancel { background:#f0f0f5; color:#333; }
+        .img-modal-c { background:white;border-radius:18px;padding:24px;width:85%;max-width:300px;text-align:center; }
+        .img-modal-t { font-size:17px;font-weight:600;margin-bottom:16px;color:#333; }
+        .img-modal-b { width:100%;padding:16px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;transition:all 0.2s; }
+        .img-modal-b.photo { background:#0071e3;color:white; }
+        .img-modal-b.gallery { background:#5856d6;color:white; }
+        .img-modal-b.cancel { background:#f0f0f5;color:#333; }
+        #fileInput,#galleryFileInput { display:none; }
 
-        /* Lightbox with zoom controls */
-        .lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999; display:none; align-items:center; justify-content:center; flex-direction:column; }
+        /* Lightbox with Zoom */
+        .lightbox { position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column; }
         .lightbox.active { display:flex; }
-        .lightbox-close { position:absolute; top:15px; right:20px; font-size:36px; color:white; cursor:pointer; z-index:100001; background:rgba(0,0,0,0.3); width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; line-height:1; }
-        .lightbox-img { max-width:95vw; max-height:80vh; object-fit:contain; border-radius:8px; transition:transform 0.2s ease; cursor:zoom-in; touch-action:none; will-change:transform; }
-        .lightbox-nav { position:absolute; top:50%; transform:translateY(-50%); width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,0.2); border:none; color:white; font-size:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:100001; }
-        .lightbox-nav.prev { left:15px; }
-        .lightbox-nav.next { right:15px; }
-        .lightbox-counter { position:absolute; bottom:30px; color:white; font-size:14px; z-index:100001; }
-        .lightbox-zoom-controls { position:absolute; bottom:80px; left:50%; transform:translateX(-50%); display:flex; gap:10px; z-index:100001; }
-        .lightbox-zoom-btn { width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.2); border:none; color:white; font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-        .lightbox-delete { position:absolute; top:15px; left:20px; background:rgba(255,59,48,0.8); color:white; border:none; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600; cursor:pointer; z-index:100001; }
+        .lb-close { position:absolute;top:15px;right:20px;font-size:36px;color:white;cursor:pointer;z-index:100001;
+            background:rgba(0,0,0,0.3);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1; }
+        .lb-img { max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;transition:transform 0.2s ease;cursor:zoom-in;
+            touch-action:none;will-change:transform; }
+        .lb-nav { position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;
+            background:rgba(255,255,255,0.2);border:none;color:white;font-size:26px;cursor:pointer;display:flex;
+            align-items:center;justify-content:center;z-index:100001; }
+        .lb-nav.prev { left:15px; } .lb-nav.next { right:15px; }
+        .lb-counter { position:absolute;bottom:30px;color:white;font-size:14px;z-index:100001; }
+        .lb-zoom { position:absolute;bottom:80px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:100001; }
+        .lb-zoom-btn { width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:white;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center; }
+        .lb-delete { position:absolute;top:15px;left:20px;background:rgba(255,59,48,0.8);color:white;border:none;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;z-index:100001; }
 
-        /* Modal for time edit */
-        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99997; display:none; align-items:center; justify-content:center; }
+        /* Time Edit Modal */
+        .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99997;display:none;align-items:center;justify-content:center; }
         .modal-overlay.show { display:flex; }
-        .modal-box { background:white; border-radius:16px; padding:24px; width:90%; max-width:340px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
-        .modal-title { font-size:17px; font-weight:600; margin-bottom:16px; text-align:center; }
-        .modal-input { width:100%; padding:14px; border:2px solid #e0e0e0; border-radius:10px; font-size:18px; text-align:center; margin-bottom:16px; }
-        .modal-input:focus { border-color:#0071e3; outline:none; }
-        .modal-actions { display:flex; gap:10px; }
-        .modal-btn { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
-        .modal-cancel { background:#f0f0f5; color:#333; }
-        .modal-save { background:#0071e3; color:white; }
-
-        /* Toast */
-        .toast-container { position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:99998; }
-        .toast { padding:12px 24px; border-radius:25px; color:white; font-size:14px; font-weight:500; animation:fadeInUp 0.3s ease; margin-bottom:8px; max-width:90vw; word-break:break-all; }
-        .toast.success { background:#34c759; }
-        .toast.error { background:#ff3b30; }
-        .toast.info { background:#0071e3; }
-        @keyframes fadeInUp { from{opacity:0;transform:translateX(-50%)translateY(-10px);} to{opacity:1;transform:translateX(-50%)translateY(0);} }
-        @keyframes fadeOut { from{opacity:1;} to{opacity:0;} }
+        .modal-box { background:white;border-radius:16px;padding:24px;width:90%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,0.3); }
+        .modal-title { font-size:17px;font-weight:600;margin-bottom:16px;text-align:center; }
+        .modal-input { width:100%;padding:14px;border:2px solid #e0e0e0;border-radius:10px;font-size:18px;text-align:center;margin-bottom:16px; }
+        .modal-input:focus { border-color:#0071e3;outline:none; }
+        .modal-actions { display:flex;gap:10px; }
+        .modal-btn { flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer; }
+        .modal-cancel { background:#f0f0f5;color:#333; } .modal-save { background:#0071e3;color:white; }
 
         /* Confirm Dialog */
-        .confirm-dialog {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-            z-index: 99998; display: none; align-items: center; justify-content: center;
-        }
-        .confirm-dialog.show { display: flex; }
-        .confirm-box { background: white; border-radius: 16px; padding: 24px; width: 85%; max-width: 320px; text-align: center; }
-        .confirm-msg { font-size: 15px; margin-bottom: 20px; line-height: 1.5; }
-        .confirm-btns { display: flex; gap: 10px; }
-        .confirm-btns button { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
-        .confirm-yes { background: #ff3b30; color: white; }
-        .confirm-no { background: #e0e0e0; color: #333; }
+        .confirm-dialog { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99998;display:none;align-items:center;justify-content:center; }
+        .confirm-dialog.show { display:flex; }
+        .confirm-box { background:white;border-radius:16px;padding:24px;width:85%;max-width:320px;text-align:center; }
+        .confirm-msg { font-size:15px;margin-bottom:20px;line-height:1.5; }
+        .confirm-btns { display:flex;gap:10px; }
+        .confirm-btns button { flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer; }
+        .confirm-yes { background:#ff3b30;color:white; } .confirm-no { background:#e0e0e0;color:#333; }
 
-        #fileInput { display:none; }
-        #galleryFileInput { display:none; }
+        /* Toast */
+        .toast-container { position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99998; }
+        .toast { padding:12px 24px;border-radius:25px;color:white;font-size:14px;font-weight:500;
+            animation:fadeInUp 0.3s ease;margin-bottom:8px;max-width:90vw;word-break:break-all; }
+        .toast.success { background:#34c759; } .toast.error { background:#ff3b30; } .toast.info { background:#0071e3; }
+        @keyframes fadeInUp { from{opacity:0;transform:translateX(-50%)translateY(-10px);} to{opacity:1;transform:translateX(-50%)translateY(0);} }
+
+        /* Photo Count Badge */
+        .photo-badge { background:#ff9500;color:white;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px;font-weight:600; }
     </style>
 </head>
 <body>
 
-<!-- Password -->
+<!-- ===== Password ===== -->
 <div class="password-screen" id="passwordScreen">
     <div class="password-box">
-        <h2>🔒 訪問受限</h2>
-        <p>請輸入密碼以繼續</p>
+        <h2>🔒 訪問受限</h2><p>請輸入密碼以繼續</p>
         <input type="password" id="passwordInput" class="password-input" placeholder="輸入密碼" maxlength="20" autocomplete="off">
         <button class="password-btn" onclick="checkPassword()">進入</button>
         <div id="passwordError" class="password-error">密碼錯誤</div>
@@ -182,7 +228,7 @@
     </div>
 </div>
 
-<!-- Change Password Screen（獨立頁面，參照 v09 成功模式） -->
+<!-- ===== Change Password ===== -->
 <div class="chgpwd-screen" id="changePwdScreen">
     <div class="chgpwd-box">
         <div class="chgpwd-title">🔐 修改密碼</div>
@@ -194,90 +240,94 @@
     </div>
 </div>
 
-<!-- Main -->
+<!-- ===== Main Content ===== -->
 <div id="mainContent" style="display:none;">
-    <div class="header">
-        <h1>📦 SFS 送貨系統 v13</h1>
-        <div class="day-selector" id="daySelector"></div>
+    <!-- Header -->
+    <div class="app-header">
+        <div class="app-title-row">
+            <div>
+                <div class="app-title">Small Fan Stand</div>
+                <div class="app-subtitle">送貨總覽頁</div>
+            </div>
+            <div class="date-badge" id="todayBadge">--/--</div>
+        </div>
+        <!-- Day Tabs -->
+        <div class="day-tabs" id="dayTabs"></div>
     </div>
 
-    <!-- Stats -->
-    <div class="stats-row">
-        <div class="stat-item"><div class="stat-num" id="completedCount" style="color:#34c759;">0</div><div class="stat-label">已完成</div></div>
-        <div class="stat-item"><div class="stat-num" id="pendingCount" style="color:#ff9500;">0</div><div class="stat-label">未完成</div></div>
-        <div class="stat-item"><div class="stat-num" id="photoCount" style="color:#5856d6;">0</div><div class="stat-label">已拍照</div></div>
+    <!-- Stats Grid (4格) -->
+    <div class="stats-grid">
+        <div class="stat-box sb-green"><div class="stat-label">已完成</div>
+            <div class="stat-num-row"><span class="stat-num-big" id="stDone">0</span><span class="stat-num-small" id="stDoneTotal">/60</span></div></div>
+        <div class="stat-box sb-orange"><div class="stat-label">尚未完成</div>
+            <div class="stat-num-row"><span class="stat-num-big" id="stTodo">0</span><span class="stat-num-small" id="stTodoTotal">/60</span></div></div>
+        <div class="stat-box sb-blue"><div class="stat-label">當日已完成</div>
+            <div class="stat-num-row"><span class="stat-num-big" id="stDayDone">0</span></div></div>
+        <div class="stat-box"><div class="stat-label">當日未完成</div>
+            <div class="stat-num-row"><span class="stat-num-big" style="color:#ff9500;" id="stDayTodo">0</span></div></div>
     </div>
 
     <!-- Sync -->
-    <div class="sync-section">
-        <button class="sync-btn sync-upload" id="uploadBtn" onclick="forceUpload()">⬆️ 上載</button>
-        <button class="sync-btn sync-download" id="downloadBtn" onclick="forceDownload()">⬇️ 下載</button>
-        <button class="sync-btn sync-reset" onclick="resetLocalData()">🔄 重置</button>
-        <button class="sync-btn sync-export" onclick="exportReport()">📄 報告</button>
+    <div class="sync-bar">
+        <button class="sync-btn btn-upload" onclick="forceUpload()">⬆ 上載</button>
+        <button class="sync-btn btn-download" onclick="forceDownload()">⬇ 下載</button>
+        <button class="sync-btn btn-reset" onclick="resetLocalData()">🔄 重置</button>
+        <button class="sync-btn btn-export" onclick="exportReport()">📄 報告</button>
     </div>
-    <div class="sync-status" id="syncStatus">等待同步</div>
+    <div class="sync-msg" id="syncMsg">等待同步</div>
 
-    <!-- Store List -->
+    <!-- Page: List -->
     <div class="page active" id="pageList">
-        <div class="store-list">
-            <div id="list-container"></div>
-        </div>
+        <div class="store-list" id="listContainer"></div>
     </div>
 
-    <!-- Completed Page -->
+    <!-- Page: Completed -->
     <div class="page" id="pageCompleted">
-        <div class="store-list">
-            <h3 style="margin-bottom:15px;color:#333;">✅ 已完成列表</h3>
-            <div id="completedList"></div>
+        <div class="completed-list" id="completedList">
+            <div class="cc-empty">尚無已完成項目</div>
         </div>
     </div>
 
-    <!-- Gallery Page -->
+    <!-- Page: Gallery -->
     <div class="page" id="pageGallery">
-        <div class="store-list">
-            <h3 style="margin-bottom:15px;color:#333;">📷 圖片庫（點擊預覽）</h3>
-            <div id="galleryGrid" class="gallery-grid"></div>
+        <div class="gallery-page">
+            <div class="gallery-header">📷 圖片庫（點擊預覽）</div>
+            <div class="gallery-grid" id="galleryGrid"></div>
         </div>
     </div>
 
     <!-- Tab Bar -->
     <div class="tab-bar">
-        <button class="tab-item active" data-page="pageList" onclick="switchPage('pageList',this)"><div class="tab-icon">📋</div><div>列表</div></button>
-        <button class="tab-item" data-page="pageCompleted" onclick="switchPage('pageCompleted',this)"><div class="tab-icon">✅</div><div>已完成</div></button>
-        <button class="tab-item" data-page="pageGallery" onclick="switchPage('pageGallery',this)"><div class="tab-icon">📷</div><div>圖片庫</div></button>
+        <button class="tab-item active" data-pg="pageList" onclick="switchPage('pageList',this)"><span class="tab-icon">📋</span>列表</button>
+        <button class="tab-item" data-pg="pageCompleted" onclick="switchPage('pageCompleted',this)"><span class="tab-icon">✅</span>已完成</button>
+        <button class="tab-item" data-pg="pageGallery" onclick="switchPage('pageGallery',this)"><span class="tab-icon">📷</span>圖片庫</button>
     </div>
 </div>
 
-<!-- Image Add Modal（拍照 / 相冊選擇） -->
+<!-- Image Add Modal -->
 <div class="img-modal" id="imgModal">
-    <div class="img-modal-content">
-        <div class="img-modal-title" id="imgModalTitle">添加圖片</div>
-        <button class="img-modal-btn photo" onclick="takePhoto()">📷 立即拍攝</button>
-        <button class="img-modal-btn gallery" onclick="chooseFromGallery()">🖼️ 從相冊選擇</button>
-        <button class="img-modal-btn cancel" onclick="closeImgModal()">取消</button>
+    <div class="img-modal-c">
+        <div class="img-modal-t" id="imgModalT">添加圖片</div>
+        <button class="img-modal-b photo" onclick="takePhoto()">📷 立即拍攝</button>
+        <button class="img-modal-b gallery" onclick="chooseFromGallery()">🖼️ 從相冊選擇</button>
+        <button class="img-modal-b cancel" onclick="closeImgModal()">取消</button>
     </div>
 </div>
-
-<!-- Hidden File Inputs -->
 <input type="file" id="fileInput" accept="image/*" capture="environment">
 <input type="file" id="galleryFileInput" accept="image/*">
 
 <!-- Lightbox -->
 <div class="lightbox" id="lightbox">
-    <button class="lightbox-delete" id="lightboxDeleteBtn" onclick="deleteLightboxImage()">🗑️ 刪除</button>
-    <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
-    <button class="lightbox-nav prev" id="lbPrev" onclick="lbNav(-1)">‹</button>
-    <img class="lightbox-img" id="lightboxImg" src="" onclick="toggleZoom()">
-    <button class="lightbox-nav next" id="lbNext" onclick="lbNav(1)">›</button>
-    <div class="lightbox-zoom-controls">
-        <button class="lightbox-zoom-btn" onclick="zoomIn()">+</button>
-        <button class="lightbox-zoom-btn" onclick="zoomOut()">−</button>
-        <button class="lightbox-zoom-btn" onclick="resetZoom()">⟲</button>
-    </div>
-    <div class="lightbox-counter" id="lbCounter">1/1</div>
+    <button class="lb-delete" id="lbDelBtn" onclick="deleteLightboxImage()">🗑️ 刪除</button>
+    <span class="lb-close" onclick="closeLightbox()">&times;</span>
+    <button class="lb-nav prev" id="lbPrev" onclick="lbNav(-1)">‹</button>
+    <img class="lb-img" id="lbImg" src="" onclick="toggleZoom()">
+    <button class="lb-nav next" id="lbNext" onclick="lbNav(1)">›</button>
+    <div class="lb-zoom"><button class="lb-zoom-btn" onclick="zoomIn()">+</button><button class="lb-zoom-btn" onclick="zoomOut()">−</button><button class="lb-zoom-btn" onclick="resetZoom()">⟲</button></div>
+    <div class="lb-counter" id="lbCounter">1/1</div>
 </div>
 
-<!-- Time Edit Modal -->
+<!-- Time Modal -->
 <div class="modal-overlay" id="timeModal">
     <div class="modal-box">
         <div class="modal-title">📝 修改完成時間</div>
@@ -292,20 +342,18 @@
 <!-- Confirm Dialog -->
 <div class="confirm-dialog" id="confirmDialog">
     <div class="confirm-box">
-        <div class="confirm-msg" id="confirmMsg">確定要刪除嗎？</div>
+        <div class="confirm-msg" id="confirmMsg">確定？</div>
         <div class="confirm-btns">
             <button class="confirm-no" onclick="closeConfirm()">取消</button>
-            <button class="confirm-yes" id="confirmYesBtn">確定刪除</button>
+            <button class="confirm-yes" id="confYesBtn">確定刪除</button>
         </div>
     </div>
 </div>
-
-<!-- Toast -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
 // ============================================================
-// ===== 完整店舖數據（參照 v09） =====
+// ===== 完整店舖數據（4天52間） =====
 // ============================================================
 const originalData = {
     wed: [
@@ -370,197 +418,105 @@ const originalData = {
     ]
 };
 
-const dayLabels = { mon:'一', wed:'三', thu:'四', fri:'五' };
+const DAY_NAMES = { mon:'一', wed:'三', thu:'四', fri:'五' };
+const TOTAL_STORES = Object.values(originalData).reduce((a,d)=>a+d.length,0);
 
-let completedStores = {};
-let imageCache = {};
-let isFirebaseReady = false;
-let firebaseDB;
+let completedStores = {}, imageCache = {};
+let isFirebaseReady = false, firebaseDB;
 let currentImgKey = null;
-let currentDay = Object.keys(originalData)[0] || 'wed';
-
-// Time modal state
+let currentDay = 'wed';
 let _editingKey = null;
 
-// Lightbox state
-let lbImages = [];
-let lbIndex = 0;
-let lbStoreKey = null;
-let zoomLevel = 1;
-let translateX = 0;
-let translateY = 0;
-let touchStartDist = 0;
-let touchStartZoom = 1;
-let isPanning = false;
-let tStartX = 0, tStartY = 0, tStartTX = 0, tStartTY = 0;
+// Lightbox
+let lbImages=[],lbIndex=0,lbStoreKey=null,zoomLevel=1,tx=0,ty=0;
 
-// IndexedDB
-let dbInstance = null;
-const DB_NAME = 'SFS_Delivery_v13';
-const STORE_NAME = 'images';
+// DB
+let dbInst = null;
+const DB_NAME='SFS_Delivery_v14', STORE_NAME='images';
 
 // ============================================================
-// ===== 密碼系統（修復版 - 參照 v09 成功模式） =====
+// ===== 密碼系統 =====
 // ============================================================
-let ACCESS_PASSWORD = "CS1908";
-let PASSWORD_VERSION = 0;
+let ACCESS_PASSWORD='CS1908', PASSWORD_VERSION=0;
 
-function isPasswordVerified() { return sessionStorage.getItem('sfsV13_verified') === 'true'; }
+function isVerified(){ return sessionStorage.getItem('sfsV14_verified')==='true'; }
 
-async function loadCloudPassword() {
-    if (!isFirebaseReady || !firebaseDB) return false;
-    try {
-        const snap = await firebaseDB.ref('passwordConfig').once('value');
-        const cfg = snap.val();
-        if (cfg && cfg.password) {
-            ACCESS_PASSWORD = cfg.password || "CS1908";
-            PASSWORD_VERSION = cfg.version || 0;
-            console.log('[PWD] 雲端密碼已載入 ver:', PASSWORD_VERSION);
-
-            const localVer = parseInt(sessionStorage.getItem('sfsV13_pwdVer')||'-1');
-            if (PASSWORD_VERSION > localVer) {
-                sessionStorage.removeItem('sfsV13_verified');
-                sessionStorage.removeItem('sfsV13_pwdVer');
-                showToast('⚠️ 密碼已更新，請重新登入','info');
-            }
+async function loadCloudPassword(){
+    if(!isFirebaseReady||!firebaseDB)return false;
+    try{
+        const s=await firebaseDB.ref('passwordConfig').once('value');
+        const cfg=s.val();
+        if(cfg&&cfg.password){
+            ACCESS_PASSWORD=cfg.password||'CS1908';
+            PASSWORD_VERSION=cfg.version||0;
+            const lv=parseInt(sessionStorage.getItem('sfsV14_pwdVer')||'-1');
+            if(PASSWORD_VERSION>lv){sessionStorage.removeItem('sfsV14_verified');sessionStorage.removeItem('sfsV14_pwdVer');showToast('⚠️ 密碼已更新','info');}
             return true;
         } else {
-            // 初始化默認
-            await firebaseDB.ref('passwordConfig').set({ password:"CS1908", version:0, updatedAt:Date.now() });
+            await firebaseDB.ref('passwordConfig').set({password:'CS1908',version:0,updatedAt:Date.now()});
             return true;
         }
-    } catch(e) { console.warn('[PWD] 加載失敗:', e); return false; }
-}
-
-async function checkPassword() {
-    const input = document.getElementById('passwordInput').value.trim();
-
-    // 確保雲端密碼已加載
-    if (isFirebaseReady && firebaseDB) {
-        await loadCloudPassword();
-    }
-
-    if (input === ACCESS_PASSWORD) {
-        sessionStorage.setItem('sfsV13_verified','true');
-        sessionStorage.setItem('sfsV13_pwdVer', PASSWORD_VERSION.toString());
-        document.getElementById('passwordScreen').classList.add('hidden');
-        document.getElementById('mainContent').style.display='block';
-        document.getElementById('passwordError').style.display='none';
-        await init();
-    } else {
-        document.getElementById('passwordError').style.display='block';
-        document.getElementById('passwordInput').value='';
-    }
-}
-
-// ----- 修改密碼（獨立屏幕，v09 成功模式） -----
-function openChangePassword() {
-    document.getElementById('changePwdScreen').classList.add('active');
-    document.getElementById('oldPwdInput').value='';
-    document.getElementById('newPwdInput').value='';
-    document.getElementById('chgPwdError').style.display='none';
-    setTimeout(() => document.getElementById('oldPwdInput').focus(), 100);
-}
-
-function closeChangePassword() {
-    document.getElementById('changePwdScreen').classList.remove('active');
-    document.getElementById('passwordInput').value='';
-    document.getElementById('passwordInput').focus();
+    }catch(e){return false;}
 }
 
 async function ensureFirebaseReady(){
-    // 如果已經就緒，直接返回
-    if(isFirebaseReady && firebaseDB) return true;
-    
-    console.log('[PWD] Firebase 未就緒，嘗試重新初始化...');
-    
-    // 嘗試初始化（最多3次，每次間隔1秒）
-    for(let i=0; i<3; i++){
+    if(isFirebaseReady&&firebaseDB)return true;
+    for(let i=0;i<3;i++){
         try{
-            if(!window.firebase){
-                console.warn(`[PWD] Firebase SDK 未載入 (${i+1}/3)`);
-                await new Promise(r=>setTimeout(r,1000));
-                continue;
-            }
+            if(!window.firebase){await new Promise(r=>setTimeout(r,1000));continue;}
             if(!firebaseDB){
-                firebase.initializeApp({
-                    apiKey:"AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc",
-                    authDomain:"fan-stand-delivery.firebaseapp.com",
-                    databaseURL:"https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app",
-                    projectId:"fan-stand-delivery"
-                });
+                firebase.initializeApp({apiKey:'AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc',
+                    authDomain:'fan-stand-delivery.firebaseapp.com',
+                    databaseURL:'https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app',
+                    projectId:'fan-stand-delivery'});
                 firebaseDB=firebase.database();
             }
-            // 測試連接
             await firebaseDB.ref('.info/connected').once('value');
-            isFirebaseReady=true;
-            console.log('[PWD] ✅ Firebase 重連成功');
-            return true;
-        }catch(e){
-            console.warn(`[PWD] 初始化嘗試 ${i+1}/3 失敗:`, e.message);
-            if(i<2) await new Promise(r=>setTimeout(r,1000));
-        }
+            isFirebaseReady=true;return true;
+        }catch(e){if(i<2)await new Promise(r=>setTimeout(r,1000));}
     }
     return false;
 }
 
-async function doChangePassword() {
-    const oldVal = document.getElementById('oldPwdInput').value;
-    const newVal = document.getElementById('newPwdInput').value;
-    const errEl = document.getElementById('chgPwdError');
-
-    errEl.style.display='none';
-
-    // 確保 Firebase 已連接（自動重試）
-    const fbOk = await ensureFirebaseReady();
-    if(fbOk && firebaseDB){
-        await loadCloudPassword();
+async function checkPassword(){
+    const inp=document.getElementById('passwordInput').value.trim();
+    if(isFirebaseReady&&firebaseDB)await loadCloudPassword();
+    if(inp===ACCESS_PASSWORD){
+        sessionStorage.setItem('sfsV14_verified','true');sessionStorage.setItem('sfsV14_pwdVer',PASSWORD_VERSION.toString());
+        document.getElementById('passwordScreen').classList.add('hidden');
+        document.getElementById('mainContent').style.display='block';
+        document.getElementById('passwordError').style.display='none';await init();
+    }else{
+        document.getElementById('passwordError').style.display='block';document.getElementById('passwordInput').value='';
     }
+}
 
-    if (oldVal !== ACCESS_PASSWORD) {
-        errEl.textContent='舊密碼錯誤';
-        errEl.style.display='block';
-        return;
-    }
-    if (newVal.length < 4) {
-        errEl.textContent='新密碼至少需要4位';
-        errEl.style.display='block';
-        return;
-    }
-    if (!fbOk || !firebaseDB) {
-        errEl.textContent='雲端連接失敗，請檢查網絡後重試';
-        errEl.style.display='block';
-        return;
-    }
-
-    try {
-        const newVer = PASSWORD_VERSION + 1;
-        await firebaseDB.ref('passwordConfig').set({
-            password: newVal,
-            version: newVer,
-            updatedAt: Date.now()
-        });
-
-        ACCESS_PASSWORD = newVal;
-        PASSWORD_VERSION = newVer;
-
-        alert('✅ 密碼修改成功！所有設備都需要使用新密碼登入。');
-        closeChangePassword();
-
-        // 清除驗證狀態
-        sessionStorage.removeItem('sfsV13_verified');
-        sessionStorage.setItem('sfsV13_pwdVer', newVer.toString());
-
+function openChangePassword(){
+    document.getElementById('changePwdScreen').classList.add('active');
+    document.getElementById('oldPwdInput').value='';document.getElementById('newPwdInput').value='';
+    document.getElementById('chgPwdError').style.display='none';
+}
+function closeChangePassword(){
+    document.getElementById('changePwdScreen').classList.remove('active');
+    document.getElementById('passwordInput').value='';
+}
+async function doChangePassword(){
+    const ov=document.getElementById('oldPwdInput').value,nv=document.getElementById('newPwdInput').value,e=document.getElementById('chgPwdError');
+    e.style.display='none';
+    const fbOk=await ensureFirebaseReady();
+    if(fbOk&&firebaseDB)await loadCloudPassword();
+    if(ov!==ACCESS_PASSWORD){e.textContent='舊密碼錯誤';e.style.display='block';return;}
+    if(nv.length<4){e.textContent='新密碼至少需要4位';e.style.display='block';return;}
+    if(!fbOk||!firebaseDB){e.textContent='雲端連接失敗，請檢查網絡';e.style.display='block';return;}
+    try{
+        const nvv=PASSWORD_VERSION+1;
+        await firebaseDB.ref('passwordConfig').set({password:nv,version:nvv,updatedAt:Date.now()});
+        ACCESS_PASSWORD=nv;PASSWORD_VERSION=nvv;
+        alert('✅ 密碼修改成功！所有設備需使用新密碼。');closeChangePassword();
+        sessionStorage.remove('sfsV14_verified');sessionStorage.setItem('sfsV14_pwdVer',nvv.toString());
         document.getElementById('passwordScreen').classList.remove('hidden');
         document.getElementById('mainContent').style.display='none';
-        document.getElementById('passwordInput').value='';
-        document.getElementById('passwordInput').focus();
-
-    } catch(e) {
-        console.error('[PWD] 修改失敗:', e);
-        errEl.textContent='修改失敗: '+e.message;
-        errEl.style.display='block';
-    }
+    }catch(ex){e.textContent='失敗:'+ex.message;e.style.display='block';}
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -568,80 +524,47 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('oldPwdInput').addEventListener('keypress',e=>{if(e.key==='Enter')doChangePassword();});
     document.getElementById('newPwdInput').addEventListener('keypress',e=>{if(e.key==='Enter')doChangePassword();});
 });
-
-window.addEventListener('load', async ()=>{
-    let attempts = 0;
-    const check = setInterval(async()=>{
-        attempts++;
-        if(isFirebaseReady){
-            clearInterval(check);
-            await loadCloudPassword();
-            if(isPasswordVerified()){
-                document.getElementById('passwordScreen').classList.add('hidden');
-                document.getElementById('mainContent').style.display='block';
-                await init();
-            } else { document.getElementById('passwordInput').focus(); }
-        } else if(attempts >= 20){
-            clearInterval(check);
-            if(isPasswordVerified()){
-                document.getElementById('passwordScreen').classList.add('hidden');
-                document.getElementById('mainContent').style.display='block';
-                await init();
-            } else { document.getElementById('passwordInput').focus(); }
-        }
-    }, 500);
+window.addEventListener('load',async()=>{
+    let a=0;const iv=setInterval(async()=>{
+        a++;if(isFirebaseReady){clearInterval(iv);await loadCloudPassword();
+            if(isVerified()){document.getElementById('passwordScreen').classList.add('hidden');document.getElementById('mainContent').style.display='block';await init();}
+            else document.getElementById('passwordInput').focus();}
+        else if(a>=20){clearInterval(iv);
+            if(isVerified()){document.getElementById('passwordScreen').classList.add('hidden');document.getElementById('mainContent').style.display='block';await init();}
+            else document.getElementById('passwordInput').focus();}
+    },500);
 });
 
 // ============================================================
 // ===== Firebase =====
 // ============================================================
 function initFirebase(){
-    try{
-        firebase.initializeApp({
-            apiKey:"AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc",
-            authDomain:"fan-stand-delivery.firebaseapp.com",
-            databaseURL:"https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId:"fan-stand-delivery"
-        });
-        firebaseDB=firebase.database();
-        isFirebaseReady=true;
-        console.log('[Firebase] ✅ OK');
-    }catch(e){console.error('[Firebase] ❌',e);isFirebaseReady=false;}
+    try{firebase.initializeApp({apiKey:'AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc',
+        authDomain:'fan-stand-delivery.firebaseapp.com',databaseURL:'https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app',projectId:'fan-stand-delivery'});
+        firebaseDB=firebase.database();isFirebaseReady=true;}catch(e){}
 }
-function makeSafeKey(day,id){return `${day}-${id}`;}
+function makeSafeKey(d,id){return `${d}-${id}`;}
 
 // ============================================================
 // ===== IndexedDB =====
 // ============================================================
 function openDB(){return new Promise((res,rej)=>{
     const r=indexedDB.open(DB_NAME,1);
-    r.onupgradeneeded=e=>{
-        const db=e.target.result;
-        if(!db.objectStoreNames.contains(STORE_NAME))
-            db.createObjectStore(STORE_NAME,{keyPath:['storeKey','imageId']});
-    };
-    r.onsuccess=e=>{dbInstance=e.target.result;res(dbInstance);};
-    r.onerror=e=>rej(e.target.error);
+    r.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(STORE_NAME))db.createObjectStore(STORE_NAME,{keyPath:['storeKey','imageId']});};
+    r.onsuccess=e=>{dbInst=e.target.result;res(dbInst);};r.onerror=e=>rej(e.target.error);
 });}
-
 async function saveImageToDB(sk,id,data){const db=await openDB();return new Promise((res,rej)=>{
     const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).put({storeKey:sk,imageId:id,imageData:data,time:Date.now()});
     tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
 });}
-
-async function getImagesFromDB(sk){const db=await openDB();return new Promise((res,rej)=>{
+async function getImagesFromDB(sk){const db=await openDB();return new Promise(res=>{
     const tx=db.transaction([STORE_NAME],'readonly');
-    tx.objectStore(STORE_NAME).getAll().onsuccess=e=>{
-        const all=(e.target.result)||[];
-        res(all.filter(r=>r.storeKey===sk));
-    };
+    tx.objectStore(STORE_NAME).getAll().onsuccess=e=>{const all=(e.target.result)||[];res(all.filter(r=>r.storeKey===sk));};
 });}
-
 async function deleteImageFromDB(sk,id){const db=await openDB();return new Promise((res,rej)=>{
     const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).delete([sk,id]);
     tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
 });}
-
 async function clearAllImagesFromDB(){const db=await openDB();return new Promise((res,rej)=>{
     const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).clear();
     tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
@@ -650,233 +573,232 @@ async function clearAllImagesFromDB(){const db=await openDB();return new Promise
 // ============================================================
 // ===== LocalStorage =====
 // ============================================================
-function loadAllData(){
-    try{
-        const s=localStorage.getItem('sfsV13_stores');
-        completedStores=s?JSON.parse(s):{};
-        console.log('[Load] Stores:',Object.keys(completedStores).length);
-    }catch(e){completedStores={};imageCache={};}
-}
-function saveStoresData(){localStorage.setItem('sfsV13_stores',JSON.stringify(completedStores));}
-function saveImageKey(key){
-    const d=JSON.parse(localStorage.getItem('sfsV13_imgKeys')||'{}');d[key]=true;
-    localStorage.setItem('sfsV13_imgKeys',JSON.stringify(d));
-}
+function loadAllData(){try{completedStores=JSON.parse(localStorage.getItem('sfsV14_stores'))||{};}catch(e){completedStores={};imageCache={};}}
+function saveStoresData(){localStorage.setItem('sfsV14_stores',JSON.stringify(completedStores));}
+function saveImageKey(key){const d=JSON.parse(localStorage.getItem('sfsV14_imgKeys')||'{}');d[key]=true;localStorage.setItem('sfsV14_imgKeys',JSON.stringify(d));}
 
 // ============================================================
-// ===== EXIF 時間讀取 =====
+// ===== EXIF =====
 // ============================================================
-function getExifTime(file){
-    return new Promise(resolve=>{
-        try{
-            EXIF.getData(file, function(){
-                const dt = EXIF.getTag(this, 'DateTimeOriginal');
-                if(dt){
-                    const parts = dt.replace(/\:/g,'-').replace(/ /,'T');
-                    const exifTime = new Date(parts.replace(/^(\d+)-(\d+)-/,'$1/$2/'));
-                    if(!isNaN(exifTime.getTime())){
-                        resolve(exifTime.getTime());
-                        return;
-                    }
-                }
-                resolve(null);
-            });
-        } catch(e){resolve(null);}
-        setTimeout(()=>resolve(null),500);
-    });
-}
+function getExifTime(file){return new Promise(resolve=>{
+    try{EXIF.getData(file,function(){
+        const dt=EXIF.getTag(this,'DateTimeOriginal');
+        if(dt){const ex=new Date(dt.replace(/\:/g,'-').replace(/ /,'T'));
+            if(!isNaN(ex.getTime()))resolve(ex.getTime());else resolve(null);}else resolve(null);
+    });}catch(e){resolve(null);}
+    setTimeout(()=>resolve(null),500);
+});}
 
 // ============================================================
 // ===== 圖片處理 =====
 // ============================================================
-function compressImage(file,maxSizeKB=300){return new Promise(res=>{
-    const r=new FileReader();
-    r.onload=e=>{const i=new Image();i.onload=()=>{
+function compressImage(file,mKB=300){return new Promise(res=>{
+    const fr=new FileReader();fr.onload=e=>{const i=new Image();i.onload=()=>{
         const c=document.createElement('canvas'),x=c.getContext('2d');
         let w=i.width,h=i.height,m=1200;if(w>m||h>m){const s=Math.min(m/w,m/h);w*=s;h*=s;}
         c.width=w;c.height=h;x.drawImage(i,0,0,w,h);let q=0.8,d=c.toDataURL('image/jpeg',q);
-        while(d.length/1024>maxSizeKB&&q>0.1){q-=0.1;d=c.toDataURL('image/jpeg',q);}
-        res(d);
-    };i.src=e.target.result;};r.readAsDataURL(file);
+        while(d.length/1024>mKB&&q>0.1){q-=0.1;d=c.toDataURL('image/jpeg',q);}res(d);
+    };i.src=e.target.result;};fr.readAsDataURL(file);
 });}
 
-// ---- 圖片添加模態框（拍照 / 相冊雙入口） ----
-function openImgModal(storeKey){
-    currentImgKey = storeKey;
-    const sid = storeKey.split('-')[1];
-    document.getElementById('imgModalTitle').textContent = `為 ${sid} 添加圖片`;
-    document.getElementById('imgModal').classList.add('show');
-}
-function closeImgModal(){
-    document.getElementById('imgModal').classList.remove('show');
-    currentImgKey = null;
-}
-function takePhoto(){
-    document.getElementById('imgModal').classList.remove('show');
-    setTimeout(() => document.getElementById('fileInput').click(), 100);
-}
-function chooseFromGallery(){
-    document.getElementById('imgModal').classList.remove('show');
-    setTimeout(() => document.getElementById('galleryFileInput').click(), 100);
-}
+function openImgModal(sk){currentImgKey=sk;document.getElementById('imgModalT').textContent=`為 ${sk.split('-')[1]} 添加圖片`;document.getElementById('imgModal').classList.add('show');}
+function closeImgModal(){document.getElementById('imgModal').classList.remove('show');currentImgKey=null;}
+function takePhoto(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('fileInput').click(),100);}
+function chooseFromGallery(){document.getElementById('imgModal').classList.remove('show');setTimeout(()=>document.getElementById('galleryFileInput').click(),100);}
 
-// 兩個 file input 共用同一個 handler
-document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-document.getElementById('galleryFileInput').addEventListener('change', handleFileSelect);
+document.getElementById('fileInput').addEventListener('change',handleFiles);
+document.getElementById('galleryFileInput').addEventListener('change',handleFiles);
 
-async function handleFileSelect(e){
-    const files = e.target.files;
-    if(!files.length || !currentImgKey) return;
-
-    const key = currentImgKey;
-    const existingImgs = imageCache[key] || [];
-    if(existingImgs.length >= 2) {
-        showToast('❌ 每間店舖最多2張圖','error');
-        e.target.value='';
-        currentImgKey=null;
-        return;
-    }
-
-    for(let i=0; i<Math.min(files.length, 2-existingImgs.length); i++){
+async function handleFiles(e){
+    const f=e.target.files;if(!f.length||!currentImgKey)return;
+    const k=currentImgKey,exist=(imageCache[k]||[]).length;
+    if(exist>=2){showToast('❌ 每店最多2張','error');e.target.value='';currentImgKey=null;return;}
+    for(let j=0;j<Math.min(f.length,2-exist);j++){
         showToast('📷 處理中...','info');
-        const compressed = await compressImage(files[i]);
-        const imgId='img_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
+        const comp=await compressImage(f[j]),iid='img_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
+        await saveImageToDB(k,iid,comp);
+        if(!imageCache[k])imageCache[k]=[];imageCache[k].push({id:iid,data:comp,time:Date.now()});saveImageKey(k);
+        // EXIF auto time
+        if(completedStores[k]){try{const et=await getExifTime(f[j]);if(et){completedStores[k].time=et;saveStoresData();showToast(`⏰ 自動設定拍照時間`,'info');}}catch(ex){}}
+    }
+    e.target.value='';currentImgKey=null;renderStoreList();renderCompletedList();updateStats();showToast('✅ 圖片已保存','success');
+}
 
-        // Save to DB
-        await saveImageToDB(key, imgId, compressed);
+// ============================================================
+// ===== 渲染：日期Tab（帶完成率） =====
+// ============================================================
 
-        // Update cache
-        if(!imageCache[key]) imageCache[key]=[];
-        imageCache[key].push({id:imgId,data:compressed,time:Date.now()});
-        saveImageKey(key);
+function getTodayStr(){
+    const d=new Date(),m=d.getMonth()+1,dd=d.getDate();
+    return m+'/'+dd;
+}
 
-        // EXIF 自動時間
-        const storeEntry = completedStores[key];
-        if(storeEntry){
-            try{
-                const exifTs = await getExifTime(files[i]);
-                if(exifTs){
-                    storeEntry.time = exifTs;
-                    saveStoresData();
-                    showToast(`⏰ 已自動設定為拍照時間`,'info');
-                }
-            }catch(ex){console.warn('EXIF err:',ex);}
+function renderDayTabs(){
+    const el=document.getElementById('dayTabs'),days=Object.keys(originalData);
+    el.innerHTML=days.map(dk=>{
+        const stores=originalData[dk]||[];
+        let done=0;for(const s of stores){if(completedStores[makeSafeKey(dk,s.id)])done++;}
+        const dName=DAY_NAMES[dk]||dk,total=stores.length;
+        return `<div class="day-tab ${dk===currentDay?'active':''}" data-d="${dk}" onclick="selectDay('${dk}',this)">
+            <div class="dt-date">${getDayLabel(dk)}</div><div class="dt-day">${dName}</div>
+            <div class="dt-count">${done}/${total}</div></div>`;
+    }).join('');
+    // Today badge
+    const td=getTodayStr();
+    document.getElementById('todayBadge').textContent=td;
+}
+
+function getDayLabel(dk){
+    // Return date label like "9/4", "10/4" etc. based on day key
+    const map={mon:'10/4',wed:'8/4',thu:'9/4',fri:'10/4'};
+    return map[dk]||'--/-';
+}
+
+function selectDay(dk,bt){
+    currentDay=dk;document.querySelectorAll('.day-tab').forEach(t=>t.classList.remove('active'));if(bt)bt.classList.add('active');
+    renderStoreList();updateStats();
+}
+
+// ============================================================
+// ===== 測染：統計區（4格） =====
+// ============================================================
+function updateStats(){
+    let totalDone=0, totalTodo=0, photoTotal=0;
+    let dayDone=0, dayTodo=0;
+    const curStores=originalData[currentDay]||[];
+
+    for(const[dk,stores]of Object.entries(originalData)){
+        for(const s of stores){
+            const k=makeSafeKey(dk,s.id);
+            if(completedStores[k])totalDone++; else totalTodo++;
         }
     }
+    for(const s of curStores){
+        const k=makeSafeKey(currentDay,s.id);
+        if(completedStores[k])dayDone++; else dayTodo++;
+    }
+    for(const imgs of Object.values(imageCache))photoTotal+=imgs.length;
 
-    e.target.value=''; currentImgKey=null;
-    renderStoreList(); renderCompletedList(); updateStats();
-    showToast('✅ 圖片已保存','success');
+    document.getElementById('stDone').textContent=totalDone;
+    document.getElementById('stDoneTotal').textContent='/'+TOTAL_STORES;
+    document.getElementById('stTodo').textContent=totalTodo;
+    document.getElementById('stTodoTotal').textContent='/'+TOTAL_STORES;
+    document.getElementById('stDayDone').textContent=dayDone;
+    document.getElementById('stDayTodo').textContent=dayTodo;
+
+    // Update tab counts too
+    renderDayTabs();
 }
 
 // ============================================================
-// ===== 渲染 Day Selector + Store List =====
+// ===== 渲染：店舖列表（圖5風格） =====
 // ============================================================
-
-function buildDaySelector(){
-    const el = document.getElementById('daySelector');
-    el.innerHTML = Object.keys(originalData).map(dk =>
-        `<button class="day-btn ${dk===currentDay?'active':''}" data-day="${dk}" onclick="selectDay('${dk}',this)">
-            ${dayLabels[dk]||dk}<br><small>${originalData[dk].length}店</small>
-        </button>`
-    ).join('');
-}
-
-function selectDay(dk, btn){
-    currentDay = dk;
-    document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));
-    if(btn) btn.classList.add('active');
-    renderStoreList();
-}
-
-function formatTime(ts){
-    return new Date(ts).toLocaleString('zh-TW',{
-        year:'numeric',month:'2-digit',day:'2-digit',
-        hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
-    }).replace(/\//g,'/');
+function formatTime(ts){return new Date(ts).toLocaleString('zh-TW',{
+    year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).replace(/\//g,'/');
 }
 
 function renderStoreList(){
-    const container = document.getElementById('list-container');
-    const stores = originalData[currentDay] || [];
-    container.innerHTML = stores.map(s=>{
-        const key = makeSafeKey(currentDay, s.id);
-        const isC = !!completedStores[key];
-        const imgs = imageCache[key] || [];
-        const timeStr = isC ? formatTime(completedStores[key].time) : '';
-        return `
-        <div class="store-card ${isC?'completed':''}">
-            <div class="store-top">
-                <div class="store-info">
-                    <div class="store-id">${s.seq}. ${s.id}</div>
-                    ${s.addr ? `<div class="store-addr">${s.addr}</div>` : ''}
-                </div>
-                <button class="complete-btn ${isC?'completed':''}" onclick="toggleComplete('${currentDay}','${s.id}')">${isC?'✓':''}</button>
+    const container=document.getElementById('listContainer');
+    const stores=originalData[currentDay]||[];
+    container.innerHTML=stores.map(s=>{
+        const k=makeSafeKey(currentDay,s.id);
+        const isC=!!completedStores[k];
+        const imgs=imageCache[k]||[];
+        const timeStr=isC?formatTime(completedStores[k].time):'';
+
+        // 右側縮圖
+        const firstImg=imgs.length?imgs[0].data:null;
+
+        return `<div class="store-card${isC?' completed':''}">
+            <!-- 左：序號 ✓ 店號 -->
+            <div class="sc-left">
+                <div class="sc-check ${isC?'done':''}" onclick="toggleComplete('${currentDay}','${s.id}')">${isC?'✓':''}</div>
+                <div class="sc-id">${s.seq}. ${s.id}</div>
             </div>
-            ${isC?`
-            <div class="time-row">
-                <span class="time-label">完成時間</span>
-                <span class="time-value" onclick="openTimeModal('${key}')" title="點擊修改">${timeStr}<span class="edit-icon">✏️</span></span>
+            <!-- 中：日期標籤 + 地址 -->
+            <div class="sc-mid">
+                <div class="sc-day-tag">${DAY_NAMES[currentDay]||''}<button class="sc-dj-btn">DJ</button></div>
+                <div class="sc-addr">${s.addr||''}</div>
+                ${isC?`<div class="sc-time-row"><span class="sc-time" onclick="openTimeModal('${k}')">✅ ${timeStr} ✏️</span>${imgs.length?`<span class="photo-badge">📷${imgs.length}</span>`:''}</div>`:''}
+                ${isC && imgs.length?`
+                <div class="sc-img-add-area">
+                    <div class="sc-img-thumbs">
+                        ${imgs.map((im,idx)=>`
+                        <div class="sc-thumb-wrap">
+                            <img class="sc-thumb" src="${im.data}" onclick="openLightbox('${k}',${idx})" alt="">
+                            <button class="sc-thumb-del" onclick="event.stopPropagation();requestDeleteImage('${k}','${im.id}')">✕</button>
+                        </div>`).join('')}
+                        ${imgs.length<2?`<div class="sc-add-btn" onclick="openImgModal('${k}')">+</div>`:''}
+                    </div>
+                </div>`:(isC&&!imgs.length?`
+                <div class="sc-img-add-area" style="margin-top:6px;">
+                    <div class="sc-img-thumbs">
+                        <div class="sc-add-btn" onclick="openImgModal('${k}')">+添加照片</div>
+                    </div>
+                </div>`:'')}
             </div>
-            `:''}
-            ${isC?`
-            <div class="img-section">
-                <div class="img-label"><span>📷 拍照記錄 (${imgs.length}/2)</span></div>
-                <div class="img-thumbs">
-                    ${imgs.map((im,idx)=>`
-                    <div class="img-thumb-wrap">
-                        <img class="img-thumb" src="${im.data}" onclick="openLightbox('${key}',${idx})" alt="圖${idx+1}">
-                        <button class="img-del-btn" onclick="event.stopPropagation();requestDeleteImage('${key}','${im.id}')" title="刪除">✕</button>
-                    </div>`).join('')}
-                    ${imgs.length<2?`<div class="img-add-btn" onclick="openImgModal('${key}')">+</div>`:''}
-                </div>
-            </div>`:''}
+            <!-- 右：縮圖 -->
+            <div class="sc-right" onclick="${firstImg?`openLightbox('${k}',0)`:''}" title="查看照片">
+                ${firstImg?`<img src="${firstImg}" alt="">`:`<span class="sc-no-img">📷</span>`}
+                ${firstImg&&isC?`<button class="sc-img-del" onclick="event.stopPropagation();requestDeleteImage('${k}','${imgs[0].id}')">✕</button>`:''}
+            </div>
         </div>`;
     }).join('');
     updateStats();
 }
 
+// ============================================================
+// ===== 渲染：已完成頁面 =====
+// ============================================================
 function renderCompletedList(){
     const el=document.getElementById('completedList');
-    const items=Object.entries(completedStores).sort((a,b)=>b[1].time-a[1].time).map(([k,d])=>{
-        const ld=k.lastIndexOf('-'),sid=k.substring(ld+1),ic=(imageCache[k]||[]).length;
-        return `<div class="store-card">
-            <div class="store-top">
-                <div class="store-info">
-                    <div class="store-id">${sid}${ic>0?`<span class="completed-img-count">📷${ic}</span>`:''}</div>
-                    <span class="completed-time" onclick="openTimeModal('${k}')" title="點擊修改">${formatTime(d.time)} ✏️</span>
+    const entries=Object.entries(completedStores).sort((a,b)=>b[1].time-a[1].time);
+    if(!entries.length){el.innerHTML='<div class="cc-empty">尚無已完成項目</div>';return;}
+
+    el.innerHTML=entries.map(([k,d])=>{
+        const ld=k.lastIndexOf('-'),sid=k.substring(ld+1),dk=k.substring(0,ld);
+        const imgs=imageCache[k]||[];
+        const addrObj=findAddr(dk,sid);
+
+        return `<div class="comp-card">
+            <div class="cc-left"><div class="cc-check">✓</div></div>
+            <div class="cc-info">
+                <div class="cc-id">${sid}${imgs.length?`<span class="photo-badge">📷${imgs.length}</span>`:''}</div>
+                <div class="cc-meta">
+                    <span class="cc-day">${DAY_NAMES[dk]||''}</span>
+                    <span class="cc-time" onclick="openTimeModal('${k}')">${formatTime(d.time)} ✏️</span>
                 </div>
+                ${addrObj?`<div class="cc-addr">${addrObj.addr}</div>`:''}
+            </div>
+            <div class="cc-img-wrap" onclick="${imgs.length?`openLightbox('${k}',0)`:''}">
+                ${imgs.length?`<img src="${imgs[0].data}" alt="">`:`<span class="cc-img-n">-</span>`}
             </div>
         </div>`;
     }).join('');
-    el.innerHTML=items||'<p style="text-align:center;padding:40px;color:#999;">尚無已完成項目</p>';
 }
 
+function findAddr(dk,sid){
+    const arr=originalData[dk];if(!arr)return null;
+    return arr.find(s=>s.id===sid)||null;
+}
+
+// ============================================================
+// ===== 渲染：圖片庫 =====
+// ============================================================
 function renderGallery(){
     const g=document.getElementById('galleryGrid');
     let items=[];
     for(const[k,imgs]of Object.entries(imageCache))
-        imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:im.time||0}));
-    items.sort((a,b)=>b.time-a.time);
+        imgs.forEach((im,idx)=>items.push({k,idx,data:im.data}));
+    items.sort((a,b)=>(b.time||0)-(a.time||0));
 
-    // Issue 4 修正：點擊 → 預覽(Lightbox)，不再直接詢問刪除
     g.innerHTML=items.length?items.map(it=>`
-        <div class="gallery-item" onclick="openLightbox('${it.k}',${it.idx})">
+        <div class="gal-item" onclick="openLightbox('${it.k}',${it.idx})">
             <img src="${it.data}" alt="">
-            <div class="gallery-del-overlay" onclick="event.stopPropagation();requestDeleteImage('${it.k}','${imageCache[it.k][it.idx].id}');closeLightbox();">🗑️</div>
-            <div class="gallery-del-hint">長按刪除</div>
+            <div class="gal-del-overlay" onclick="event.stopPropagation();requestDeleteImage('${it.k}','${imageCache[it.k][it.idx].id}');closeLightbox();">🗑️</div>
+            <div class="gal-hint">長按刪除</div>
         </div>`).join('')
-        :'<p style="grid-column:1/-1;text-align:center;padding:40px;color:#999;">尚無圖片</p>';
-}
-
-function updateStats(){
-    let c=0,p=0,ph=0;
-    for(const[dk,stores]of Object.entries(originalData))
-        for(const s of stores){const k=makeSafeKey(dk,s.id);completedStores[k]?c++:p++;}
-    for(const imgs of Object.values(imageCache))ph+=imgs.length;
-    document.getElementById('completedCount').textContent=c;
-    document.getElementById('pendingCount').textContent=p;
-    document.getElementById('photoCount').textContent=ph;
+        :'<div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa;">尚無圖片</div>';
 }
 
 // ============================================================
@@ -888,7 +810,6 @@ function toggleComplete(dk,sid){
     else completedStores[k]={time:Date.now()};
     saveStoresData();renderStoreList();renderCompletedList();updateStats();
 }
-
 function switchPage(pid,btn){
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
@@ -898,190 +819,89 @@ function switchPage(pid,btn){
     if(pid==='pageGallery')renderGallery();
 }
 
-// ============================================================
-// ===== A1: 刪除圖片 =====
-// ============================================================
-let _pendingDelete=null;
+// 刪除圖片
+let _pendingDel=null;
 function requestDeleteImage(key,imgId){
-    _pendingDelete={key,imgId};
-    showConfirm('確定要刪除此照片？\n\n此操作不可復原。',()=>{
-        doDeleteImage(_pendingDelete.key,_pendingDelete.imgId);
-    });
+    _pendingDel={key,imgId};
+    showConfirm('確定要刪除此照片？\n\n此操作不可復原。',()=>doDeleteImage(_pendingDel.key,_pendingDel.imgId));
 }
-
 function doDeleteImage(key,imgId){
     if(imageCache[key]){
         imageCache[key]=imageCache[key].filter(im=>im.id!==imgId);
-        if(imageCache[key].length===0)delete imageCache[key];
+        if(!imageCache[key].length)delete imageCache[key];
     }
     deleteImageFromDB(key,imgId).catch(console.error);
-    const d=JSON.parse(localStorage.getItem('sfsV13_imgKeys')||'{}');
-    if(!(imageCache[key]||[]).length)delete d[key];
-    else d[key]=true;
-    localStorage.setItem('sfsV13_imgKeys',JSON.stringify(d));
-    renderStoreList();renderCompletedList();renderGallery();updateStats();
-    showToast('🗑️ 圖片已刪除','success');
+    const d=JSON.parse(localStorage.getItem('sfsV14_imgKeys')||'{}');
+    if(!(imageCache[key]||[]).length)delete d[key];else d[key]=true;
+    localStorage.setItem('sfsV14_imgKeys',JSON.stringify(d));
+    renderStoreList();renderCompletedList();renderGallery();updateStats();showToast('🗑️ 圖片已刪除','success');
 }
 
-// ============================================================
-// ===== A2: 修改完成時間 =====
-// ============================================================
-function openTimeModal(key){
-    _editingKey=key;
+// 時間編輯
+function openTimeModal(key){_editingKey=key;
     const ts=completedStores[key]?.time||Date.now();
-    const dt=new Date(ts);
-    const pad=n=>String(n).padStart(2,'0');
-    const val=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-    document.getElementById('timeModalInput').value=val;
+    const dt=new Date(ts);const pad=n=>String(n).padStart(2,'0');
+    document.getElementById('timeModalInput').value=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
     document.getElementById('timeModal').classList.add('show');
 }
 function closeTimeModal(){document.getElementById('timeModal').classList.remove('show');_editingKey=null;}
 function saveTimeEdit(){
     if(!_editingKey)return;
-    const val=document.getElementById('timeModalInput').value;
-    const newTs=new Date(val).getTime();
-    if(isNaN(newTs)){showToast('❌ 無效的時間格式','error');return;}
-    if(completedStores[_editingKey])completedStores[_editingKey].time=newTs;
-    saveStoresData();
-    closeTimeModal();
-    renderStoreList();renderCompletedList();
-    showToast('✅ 時間已更新','success');
+    const val=document.getElementById('timeModalInput').value,ts=new Date(val).getTime();
+    if(isNaN(ts)){showToast('❌ 無效時間','error');return;}
+    if(completedStores[_editingKey])completedStores[_editingKey].time=ts;
+    saveStoresData();closeTimeModal();renderStoreList();renderCompletedList();showToast('✅ 時間已更新','success');
 }
 document.getElementById('timeModalInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveTimeEdit();});
 
 // ============================================================
-// ===== Lightbox + 縮放（Issue 5: 完整縮放功能，參照 v09）=====
+// ===== Lightbox + 縮放 =====
 // ============================================================
 function openLightbox(sk,ix){
-    const imgs=imageCache[sk]||[]; if(!imgs[ix])return;
-    lbImages=imgs; lbStoreKey=sk; lbIndex=ix;
-    resetZoom();
-    showLbImage();
-    document.getElementById('lightbox').classList.add('active');
-    document.body.style.overflow='hidden';
+    const imgs=imageCache[sk]||[];if(!imgs[ix])return;
+    lbImages=imgs;lbStoreKey=sk;lbIndex=ix;resetZoom();showLbImg();
+    document.getElementById('lightbox').classList.add('active');document.body.style.overflow='hidden';
     initTouchListeners();
 }
 function closeLightbox(){
-    document.getElementById('lightbox').classList.remove('active');
-    document.body.style.overflow='';
-    resetZoom();
-    removeTouchListeners();
+    document.getElementById('lightbox').classList.remove('active');document.body.style.overflow='';resetZoom();removeTouchListeners();
 }
-function showLbImage(){
-    document.getElementById('lightboxImg').src=lbImages[lbIndex].data;
+function showLbImg(){
+    document.getElementById('lbImg').src=lbImages[lbIndex].data;
     document.getElementById('lbCounter').textContent=`${lbIndex+1}/${lbImages.length}`;
     document.getElementById('lbPrev').style.display=lbImages.length>1?'flex':'none';
     document.getElementById('lbNext').style.display=lbImages.length>1?'flex':'none';
-    document.getElementById('lightboxDeleteBtn').style.display='flex';
+    document.getElementById('lbDelBtn').style.display='flex';
 }
-function lbNav(dir){
-    lbIndex=(lbIndex+dir+lbImages.length)%lbImages.length;
-    resetZoom(); showLbImage();
-}
+function lbNav(dir){lbIndex=(lbIndex+dir+lbImages.length)%lbImages.length;resetZoom();showLbImg();}
 
-// ---- 縮放控制 ----
-function toggleZoom(){
-    if(zoomLevel===1){ zoomLevel=2; }
-    else { zoomLevel=1; translateX=0; translateY=0; }
-    applyZoom();
-}
-function zoomIn(){ zoomLevel=Math.min(zoomLevel+0.5,4); applyZoom(); }
-function zoomOut(){ zoomLevel=Math.max(zoomLevel-0.5,1); if(zoomLevel===1){translateX=0;translateY=0;} applyZoom(); }
-function resetZoom(){ zoomLevel=1; translateX=0; translateY=0; applyZoom(); }
+function toggleZoom(){zoomLevel=zoomLevel>1?1:2;if(zoomLevel===1){tx=0;ty=0;}applyZoom();}
+function zoomIn(){zoomLevel=Math.min(zoomLevel+0.5,4);applyZoom();}
+function zoomOut(){zoomLevel=Math.max(zoomLevel-0.5,1);if(zoomLevel===1){tx=0;ty=0;}applyZoom();}
+function resetZoom(){zoomLevel=1;tx=0;ty=0;applyZoom();}
+function applyZoom(){document.getElementById('lbImg').style.transform=`scale(${zoomLevel}) translate(${tx}px,${ty}px)`;}
+function deleteLightboxImage(){if(lbStoreKey&&lbImages[lbIndex]){requestDeleteImage(lbStoreKey,lbImages[lbIndex].id);closeLightbox();}}
 
-function applyZoom(){
-    const img=document.getElementById('lightboxImg');
-    img.style.transform=`scale(${zoomLevel}) translate(${translateX}px, ${translateY}px)`;
-    img.classList.toggle('zoomed', zoomLevel>1);
-}
-
-// Lightbox delete
-function deleteLightboxImage(){
-    if(!lbStoreKey)return;
-    const im=lbImages[lbIndex];
-    if(im){
-        requestDeleteImage(lbStoreKey, im.id);
-        closeLightbox();
-    }
-}
-
-// ---- 觸控縮放 Pinch-to-Zoom ----
-function getTouchDist(t){
-    const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY;
-    return Math.sqrt(dx*dx+dy*dy);
-}
+// 觸控
+function getDist(t){const dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;return Math.sqrt(dx*dx+dy*dy);}
 function initTouchListeners(){
-    const img=document.getElementById('lightboxImg');
-    img.addEventListener('dblclick', onLbDblClick);
-    img.addEventListener('touchstart', handleTouchStart, {passive:false});
-    img.addEventListener('touchmove', handleTouchMove, {passive:false});
-    img.addEventListener('touchend', handleTouchEnd);
+    const im=document.getElementById('lbImg');
+    im.addEventListener('dblclick',onDblClick);im.addEventListener('touchstart',tsH,{passive:false});im.addEventListener('touchmove',tmH,{passive:false});im.addEventListener('touchend',teH);
 }
-function removeTouchListeners(){
-    const img=document.getElementById('lightboxImg');
-    img.removeEventListener('dblclick', onLbDblClick);
-    img.removeEventListener('touchstart', handleTouchStart);
-    img.removeEventListener('touchmove', handleTouchMove);
-    img.removeEventListener('touchend', handleTouchEnd);
-}
-function onLbDblClick(){
-    zoomLevel=zoomLevel>1?1:2;
-    if(zoomLevel===1){translateX=0;translateY=0;}
-    applyZoom();
-}
-function handleTouchStart(e){
-    if(e.touches.length===2){
-        e.preventDefault();
-        touchStartDist=getTouchDist(e.touches);
-        touchStartZoom=zoomLevel;
-    }else if(e.touches.length===1 && zoomLevel>1){
-        isPanning=true;
-        tStartX=e.touches[0].clientX; tStartY=e.touches[0].clientY;
-        tStartTX=translateX; tStartTY=translateY;
-    }
-}
-function handleTouchMove(e){
-    if(e.touches.length===2){
-        e.preventDefault();
-        const curDist=getTouchDist(e.touches);
-        const scale=curDist/touchStartDist;
-        zoomLevel=Math.max(1, Math.min(4, touchStartZoom*scale));
-        if(zoomLevel<=1){translateX=0;translateY=0;}
-        applyZoom();
-    }else if(e.touches.length===1 && isPanning){
-        e.preventDefault();
-        const dx=e.touches[0].clientX-tStartX, dy=e.touches[0].clientY-tStartY;
-        translateX=tStartTX+dx*0.5; translateY=tStartTY+dy*0.5;
-        constrainPan(); applyZoom();
-    }
-}
-function handleTouchEnd(e){
-    if(e.touches.length<2) isPanning=false;
-}
-function constrainPan(){
-    if(zoomLevel<=1){translateX=0;translateY=0;return;}
-    const sw=window.innerWidth, sh=window.innerHeight;
-    const mx=sw*0.4*(zoomLevel-1), my=sh*0.4*(zoomLevel-1);
-    translateX=Math.max(-mx,Math.min(mx,translateX));
-    translateY=Math.max(-my,Math.min(my,translateY));
-}
+function removeTouchListeners(){const im=document.getElementById('lbImg');im.removeEventListener('dblclick',onDblClick);im.removeEventListener('touchstart',tsH);im.removeEventListener('touchmove',tmH);im.removeEventListener('touchend',teH);}
+function onDblClick(){zoomLevel=zoomLevel>1?1:2;if(zoomLevel===1){tx=0;ty=0;}applyZoom();}
+let tsDist=0,tsZ=1,isPan=false,tSX=0,tSY=0,stTX=0,stTY=0;
+function tsH(e){if(e.touches.length===2){e.preventDefault();tsDist=getDist(e.touches);tsZ=zoomLevel;}else if(e.touches.length===1&&zoomLevel>1){isPan=true;tSX=e.touches[0].clientX;tSY=e.touches[0].clientY;stTX=tx;stTY=ty;}}
+function tmH(e){if(e.touches.length===2){e.preventDefault();const cd=getDist(e.touches),s=cd/tsDist;zoomLevel=Math.max(1,Math.min(4,tsZ*s));if(zoomLevel<=1){tx=0;ty=0;}applyZoom();}else if(e.touches.length===1&&isPan){e.preventDefault();const dx=e.touches[0].clientX-tSX,dy=e.touches[0].clientY-tSY;tx=stTX+dx*0.5;ty=stTY+dy*0.5;constrainPan();applyZoom();}}
+function teH(e){if(e.touches.length<2)isPan=false;}
+function constrainPan(){if(zoomLevel<=1){tx=0;ty=0;return;}const sw=window.innerWidth,sh=window.innerHeight,mx=sw*0.4*(zoomLevel-1),my=sh*0.4*(zoomLevel-1);tx=Math.max(-mx,Math.min(mx,tx));ty=Math.max(-my,Math.min(my,ty));}
+document.addEventListener('keydown',e=>{if(!lbStoreKey)return;if(e.key==='ArrowRight'&&lbIndex<lbImages.length-1)lbNav(1);if(e.key==='ArrowLeft'&&lbIndex>0)lbNav(-1);if(e.key==='Escape')closeLightbox();});
 
-// Keyboard nav
-document.addEventListener('keydown',e=>{
-    if(!lbStoreKey)return;
-    if(e.key==='ArrowRight'&&lbIndex<lbImages.length-1)lbNav(1);
-    if(e.key==='ArrowLeft'&&lbIndex>0)lbNav(-1);
-    if(e.key==='Escape')closeLightbox();
-});
-
-// ============================================================
-// ===== 確認對話框 =====
-// ============================================================
-function showConfirm(msg,yesFn){
-    document.getElementById('confirmMsg').textContent=msg;
-    const yesBtn=document.getElementById('confirmYesBtn');
-    const newBtn=yesBtn.cloneNode(true);yesBtn.parentNode.replaceChild(newBtn,yesBtn);
-    newBtn.addEventListener('click',()=>{closeConfirm();yesFn();});
+// Confirm
+function showConfirm(msg,yFn){
+    document.getElementById('confirmMsg').msg?document.getElementById('confirmMsg').textContent=msg:void(document.getElementById('confirmMsg').textContent=msg);
+    const yb=document.getElementById('confYesBtn'),nb=yb.cloneNode(true);yb.parentNode.replaceChild(nb,yb);
+    nb.addEventListener('click',()=>{closeConfirm();yFn();});
     document.getElementById('confirmDialog').classList.add('show');
 }
 function closeConfirm(){document.getElementById('confirmDialog').classList.remove('show');}
@@ -1091,102 +911,110 @@ function closeConfirm(){document.getElementById('confirmDialog').classList.remov
 // ============================================================
 async function forceUpload(){
     if(!isFirebaseReady){showToast('❌ 未連接','error');return;}
-    const b=document.getElementById('uploadBtn');b.textContent='🔄 上載中...';b.disabled=true;
+    const b=document.querySelector('.btn-upload');b.textContent='🔄...';b.disabled=true;
     try{
-        const imgUp={};
-        for(const[k,imgs]of Object.entries(imageCache))imgUp[k]=imgs.map(im=>im.data);
-        const payload={stores:completedStores,images:imgUp,timestamp:Date.now()};
-        const szKB=JSON.stringify(payload).length/1024;
-        if(szKB>800)showToast(`⚠️ 數據較大(${Math.round(szKB)}KB)`,'info');
+        const iU={};for(const[k,imgs]of Object.entries(imageCache))iU[k]=imgs.map(im=>im.data);
+        const payload={stores:completedStores,images:iU,timestamp:Date.now()};
         await firebaseDB.ref('deliveryData').set(payload);
-        showToast(`✅ 上載成功 ${Object.keys(completedStores).length}店 ${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}張圖`,'success');
-        document.getElementById('syncStatus').textContent='✅ 上載 '+new Date().toLocaleTimeString();
+        const tO=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
+        showToast(`✅ 上載成功 ${Object.keys(completedStores).length}店 ${tO}張圖`,'success');
+        document.getElementById('syncMsg').textContent='✅ '+new Date().toLocaleTimeString();
     }catch(e){console.error('[Up]',e);showToast('❌ '+e.message,'error');}
-    finally{b.textContent='⬆️ 上載';b.disabled=false;}
+    finally{b.textContent='⬆ 上載';b.disabled=false;}
 }
-
 async function forceDownload(){
     if(!isFirebaseReady){showToast('❌ 未連接','error');return;}
-    const b=document.getElementById('downloadBtn');b.textContent='🔄 下載中...';b.disabled=true;
+    const b=document.querySelector('.btn-download');b.textContent='🔄...';b.disabled=true;
     try{
-        const snap=await firebaseDB.ref('deliveryData').once('value');
-        const data=snap.val();
+        const snap=await firebaseDB.ref('deliveryData').once('value');const data=snap.val();
         if(data&&data.stores){
-            console.log('[DL] Stores:',Object.keys(data.stores).length,', Images:',data.images?Object.keys(data.images).length:0);
             completedStores={...data.stores};saveStoresData();
-            imageCache={};const nIK={};
-            await clearAllImagesFromDB();
-            if(data.images){
-                let ti=0;
-                for(const[k,imgs]of Object.entries(data.images)){
-                    if(Array.isArray(imgs)&&imgs.length>0){
-                        imageCache[k]=imgs.map((d,i)=>{
-                            ti++;
-                            return{id:'dl'+i+'_'+Date.now().toString(36),data:d,time:data.timestamp||Date.now()};
-                        });
-                        for(const im of imageCache[k])await saveImageToDB(k,im.id,im.data);
-                        nIK[k]=true;
-                    }
-                }
-                localStorage.setItem('sfsV13_imgKeys',JSON.stringify(nIK));
-                console.log('[DL] Restored',ti,'images');
+            imageCache={};const nIK={};await clearAllImagesFromDB();
+            if(data.images){let ti=0;
+                for(const[k,imgs]of Object.entries(data.images)){if(Array.isArray(imgs)&&imgs.length>0){
+                    imageCache[k]=imgs.map((d,i)=>{ti++;return{id:'dl'+i+'_'+Date.now().toString(36),data:d,time:data.timestamp||Date.now()};});
+                    for(const im of imageCache[k])await saveImageToDB(k,im.id,im.data);
+                    nIK[k]=true;
+                }}
+                localStorage.setItem('sfsV14_imgKeys',JSON.stringify(nIK));
             }
             updateStats();renderStoreList();renderCompletedList();renderGallery();
-            showToast(`✅ 下載成功 ${Object.keys(completedStores).length}店 ${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}張圖`,'success');
-            document.getElementById('syncStatus').textContent='✅ 同步 '+new Date().toLocaleTimeString();
+            const tO=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
+            showToast(`✅ 下載成功 ${Object.keys(completedStores).length}店 ${tO}張圖`,'success');
+            document.getElementById('syncMsg').textContent='✅ '+new Date().toLocaleTimeString();
         }else{showToast('ℹ️ 雲端無數據','info');}
     }catch(e){console.error('[DL]',e);showToast('❌ '+e.message,'error');}
-    finally{b.textContent='⬇️ 下載';b.disabled=false;}
+    finally{b.textContent='⬇ 下載';b.disabled=false;}
 }
 
 // ============================================================
-// ===== B1: 匯出報告 =====
+// ===== 報告匯出（圖4風格：按日期分組卡片式） =====
 // ============================================================
 async function exportReport(){
     const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);
-    if(!entries.length){showToast('ℹ️ 尚無已完成數據','info');return;}
+    if(!entries.length){showToast('ℹ️ 尚無數據','info');return;}
+    showToast('📄 生成中...','info');
 
-    showToast('📄 生成報告中...','info');
+    // Group by day
+    const groups={};
+    for(const[k,d]of entries){
+        const ld=k.lastIndexOf('-'),dk=k.substring(0,ld),sid=k.substring(ld+1);
+        if(!groups[dk])groups[dk]=[];
+        const imgs=imageCache[k]||[];
+        const addr=findAddr(dk,sid);
+        groups[dk].push({sid,k,d,imgs,addr:addr?addr.addr:''});
+    }
 
     let html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>送貨報告</title>
-    <style>body{font-family:sans-serif;padding:20px;color:#333;}h1{text-align:center;color:#0071e3;margin-bottom:5px;}
-    .meta{text-align:center;color:#888;font-size:14px;margin-bottom:30px;}
-    table{width:100%;border-collapse:collapse;margin-bottom:30px;}
-    th,td{border:1px solid #ddd;padding:10px;text-align:left;font-size:14px;}
-    th{background:#0071e3;color:white;}.odd{background:#f8f9fa;}
-    .img-cell img{max-width:120px;max-height:120px;border-radius:8px;margin:2px;}
-    .summary{display:flex;gap:15px;justify-content:center;margin:20px 0;}
-    .summary-item{text-align:center;padding:15px;background:#f0f9ff;border-radius:12px;}
-    .summary-num{font-size:28px;font-weight:700;color:#0071e3;}
-    .summary-lbl{font-size:12px;color:#888;}
-    .footer{text-align:center;color:#aaa;font-size:12px;margin-top:40px;}</style></head><body>
-    <h1>📦 SFS 送貨報告</h1>
-    <div class="meta">生成時間：${new Date().toLocaleString('zh-TW')}</div>
-    <div class="summary">
-        <div class="summary-item"><div class="summary-num">${entries.length}</div><div class="summary-lbl">已完成店舖</div></div>
-        <div class="summary-item"><div class="summary-num">${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}</div><div class="summary-lbl">拍攝照片</div></div>
-    </div>
-    <table><tr><th>#</th><th>日期</th><th>店號</th><th>完成時間</th><th>照片</th></tr>`;
+    <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:-apple-system,sans-serif;padding:16px;max-width:720px;margin:0 auto;background:#fff;color:#333;}
+    h1{text-align:center;font-size:20px;color:#0071e3;margin-bottom:4px;}
+    .sub{text-align:center;color:#888;font-size:13px;margin-bottom:20px;}
+    .summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;}
+    .sum-box{text-align:center;padding:14px;background:#f0f9ff;border-radius:12px;}
+    .sum-num{font-size:28px;font-weight:800;color:#0071e3;}
+    .sum-lbl{font-size:11px;color:#888;margin-top:4px;}
+    .day-section{margin-bottom:24px;}
+    .day-header{background:linear-gradient(135deg,#0071e3,#5856d6);color:white;padding:12px 16px;border-radius:12px;font-size:16px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+    .day-count{font-size:14px;opacity:0.85;font-weight:400;}
+    .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:10px;display:flex;gap:12px;box-shadow:0 1px 4px rgba(0,0,0,0.04);align-items:flex-start;}
+    .card-img{width:90px;height:90px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#f5f5f5;}
+    .card-body{flex:1;min-width:0;}
+    .card-sid{font-size:17px;font-weight:700;color:#0071e3;}
+    .card-addr{font-size:12px;color:#555;margin-top:3px;line-height:1.4;}
+    .card-time{color:#34c759;font-size:13px;font-weight:500;margin-top:4px;}
+    .footer{text-align:center;color:#aaa;font-size:12px;margin-top:30px;padding-top:16px;border-top:1px solid #eee;}
+    .pg{text-align:center;color:#888;font-size:12px;margin-top:16px;}
+    </style></head><body>
+    <h1>📦 Small Fan Stand 送貨完成報告</h1>
+    <div class="sub">生成時間：${new Date().toLocaleString('zh-TW')}</div>
+    <div class="summary"><div class="sum-box"><div class="sum-num">${entries.length}</div><div class="sum-lbl">已完成項目</div></div>
+    <div class="sum-box"><div class="sum-num">${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}</div><div class="sum-lbl">拍攝照片</div></div></div>`;
 
-    entries.forEach(([k,d],i)=>{
-        const ld=k.lastIndexOf('-'),sid=k.substring(ld+1);
-        const dayPart=k.substring(0,ld).replace('-','/');
-        const imgs=imageCache[k]||[];
-        html+=`<tr class="${i%2?'odd':''}">
-            <td>${i+1}</td><td>${dayPart}</td><td>${sid}</td><td>${formatTime(d.time)}</td>
-            <td class="img-cell">${imgs.map(im=>`<img src="${im.data}" alt="">`).join('')}</td>
-        </tr>`;
-    });
+    let globalIdx=0;
+    for(const dk of Object.keys(groups)){
+        const items=groups[dk],dName=DAY_NAMES[dk]||'',dl=getDayLabel(dk);
+        html+=`<div class="day-section">
+            <div class="day-header">${dl}日（週${dName}）－完成 <span class="day-count">${items.length} 項</span></div>`;
+        for(const item of items){
+            globalIdx++;
+            html+=`<div class="card">
+                ${item.imgs.length?`<img class="card-img" src="${item.imgs[0].data}" alt="">`:''}
+                <div class="card-body">
+                    <div class="card-sid">#${item.sid}${item.imgs.length?` <small style="color:#ff9500;">📷${item.imgs.length}</small>`:''}</div>
+                    ${item.addr?`<div class="card-addr">${item.addr}</div>`:''}
+                    <div class="card-time">✅ 完成時間: ${formatTime(item.d.time)}</div>
+                </div>
+            </div>`;
+        }
+        html+=`</div>`;
+    }
 
-    html+=`</table><div class="footer">SFS Delivery System v13</div></body></html>`;
+    html+=`<div class="pg">第 1 頁 / 共 1 頁 | 總計 ${entries.length} 項完成 | 匯出時間：${new Date().toISOString().replace('T',' ').slice(0,19)}</div>
+    <div class="footer">Small Fan Stand Delivery System v14</div></body></html>`;
 
-    const blob=new Blob([html],{type:'text/html'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=`送貨報告_${new Date().toISOString().slice(0,10)}.html`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-
+    const blob=new Blob([html],{type:'text/html'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=`送貨報告_${new Date().toISOString().slice(0,10)}.html`;
+    a.click();URL.revokeObjectURL(a.href);
     showToast('✅ 報告已下載','success');
 }
 
@@ -1194,50 +1022,37 @@ async function exportReport(){
 // ===== 重置 =====
 // ============================================================
 async function resetLocalData(){
-    const input=prompt('⚠️ 清除所有本地數據\n請輸入密碼：');
-    if(input===null)return;
+    const input=prompt('⚠️ 清除所有本地數據\n請輸入密碼：');if(input===null)return;
     if(input!==ACCESS_PASSWORD){showToast('❌ 密碼錯誤','error');return;}
     if(!confirm('確定清除？\n•已完成記錄\n•圖片緩存\n•不影響雲端'))return;
-
-    localStorage.removeItem('sfsV13_stores');
-    localStorage.removeItem('sfsV13_imgKeys');
-    localStorage.removeItem('sfsV13_verified');
-    completedStores={};imageCache={};
+    localStorage.removeItem('sfsV14_stores');localStorage.removeItem('sfsV14_imgKeys');
+    localStorage.removeItem('sfsV14_verified');completedStores={};imageCache={};
     await clearAllImagesFromDB();
-
     renderStoreList();renderCompletedList();renderGallery();updateStats();
-    document.getElementById('syncStatus').textContent='🔄 已重置';
-    showToast('✅ 本地已重置','success');
+    document.getElementById('syncMsg').textContent='🔄 已重置';showToast('✅ 本地已重置','success');
 }
 
 // ============================================================
 // ===== Toast =====
 // ============================================================
 function showToast(msg,type='info'){
-    const c=document.getElementById('toastContainer');
-    const t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);
-    setTimeout(()=>{t.style.animation='fadeOut 0.3s ease forwards';setTimeout(()=>t.remove(),300);},2500);
+    const c=document.getElementById('toastContainer'),t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);
+    setTimeout(()=>{t.style.animation='fadeOut 0.3s forwards';setTimeout(()=>t.remove(),300);},2500);
 }
 
 // ============================================================
 // ===== 初始化 =====
 // ============================================================
 async function init(){
-    console.log('[Init v13] Start...');
-    initFirebase();
-    buildDaySelector();
-    await openDB();
-    loadAllData();
+    console.log('[Init v14]');
+    initFirebase();renderDayTabs();await openDB();loadAllData();
     imageCache={};
-    const ik=JSON.parse(localStorage.getItem('sfsV13_imgKeys')||'{}');
+    const ik=JSON.parse(localStorage.getItem('sfsV14_imgKeys')||'{}');
     for(const key of Object.keys(ik)){
-        try{
-            const imgs=await getImagesFromDB(key);
-            if(imgs?.length)imageCache[key]=imgs.map(r=>({id:r.imageId,data:r.imageData,time:r.time}));
-        }catch(e){console.warn('[Init] img err',key,e);}
+        try{const imgs=await getImagesFromDB(key);if(imgs?.length)imageCache[key]=imgs.map(r=>({id:r.imageId,data:r.imageData,time:r.time}));}catch(e){}
     }
     renderStoreList();renderCompletedList();renderGallery();updateStats();
-    console.log('[Init v13] ✅ Done - Stores:',Object.keys(completedStores).length,', Img keys:',Object.keys(imageCache).length);
+    console.log('[Init v14] ✅ Done');
 }
 </script>
 </body>
