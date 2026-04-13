@@ -104,18 +104,14 @@
             opacity:0;transition:opacity 0.2s;z-index:2;cursor:pointer;line-height:1;padding:0;}
         .sc-right:hover .sc-img-del { opacity:1; }
 
-        /* Image Add Area in Card */
-        .sc-img-add-area { margin-top:8px; border-top:1px solid #eee; padding-top:8px; }
-        .sc-img-thumbs { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
-        .sc-thumb { width:64px;height:64px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid transparent;transition:transform 0.15s; }
-        .sc-thumb:hover { transform:scale(1.05); }
+        /* 圖片縮略圖行（平排顯示） */
+        .sc-img-row { display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:nowrap;}
+        .sc-thumb { width:60px;height:60px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid transparent;transition:all 0.15s;flex-shrink:0; }
+        .sc-thumb:hover { transform:scale(1.06);border-color:#0071e3; }
         .sc-thumb-wrap { position:relative; }
-        .sc-thumb-del { position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:#ff3b30;color:white;border-radius:50%;
-            border:none;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;line-height:1;opacity:0;transition:opacity 0.2s;}
-        .sc-thumb-wrap:hover .sc-thumb-del { opacity:1; }
-        .sc-add-btn { width:64px;height:64px;border-radius:8px;border:2px dashed #ccc;background:#fafafa;cursor:pointer;
-            display:flex;align-items:center;justify-content:center;font-size:22px;color:#bbb;transition:all 0.2s;flex-shrink:0; }
-        .sc-add-btn:hover { border-color:#0071e3;color:#0071e3; }
+        .sc-thumb-del { position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:#ff3b30;color:white;border-radius:50%;
+            border:none;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;line-height:1;
+            box-shadow:0 2px 4px rgba(0,0,0,0.3); }
 
         /* ===== Tab Bar ===== */
         .tab-bar { position:fixed;bottom:0;left:0;right:0;background:white;display:flex;
@@ -146,16 +142,18 @@
         .cc-img-n { font-size:20px;color:#ddd; }
         .cc-empty { text-align:center;padding:40px;color:#aaa;font-size:14px; }
 
-        /* Gallery Page */
+        /* Gallery Page - 點擊預覽，長按刪除 */
         .gallery-page { padding:8px 16px 80px; }
         .gallery-header { font-size:16px;font-weight:600;color:#333;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
         .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-        .gal-item { aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;position:relative; }
-        .gal-item img { width:100%;height:100%;object-fit:cover; }
-        .gal-del-overlay { position:absolute;inset:0;background:rgba(255,59,48,0.65);
+        .gal-item { aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;position:relative;
+            touch-action:none;-webkit-tap-highlight-color:transparent; }
+        .gal-item img { width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;-webkit-user-drag:none; }
+        /* 刪除overlay只在長按或顯示時出現 */
+        .gal-del-overlay { position:absolute;inset:0;background:rgba(255,59,48,0.7);
             display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;
-            font-size:28px;color:white;z-index:2;pointer-events:auto; }
-        .gal-hint { position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:9px;color:rgba(255,255,255,0.7);z-index:3;pointer-events:none; }
+            font-size:28px;color:white;z-index:2;pointer-events:auto;}
+        .gal-del-overlay.show { opacity:1; }
 
         /* Image Modal（拍照 / 相冊） */
         .img-modal { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99997;display:none;align-items:center;justify-content:center; }
@@ -705,8 +703,6 @@ function renderStoreList(){
         const isC=!!completedStores[k];
         const imgs=imageCache[k]||[];
         const timeStr=isC?formatTime(completedStores[k].time):'';
-
-        // 右側縮圖
         const firstImg=imgs.length?imgs[0].data:null;
 
         return `<div class="store-card${isC?' completed':''}">
@@ -715,32 +711,26 @@ function renderStoreList(){
                 <div class="sc-check ${isC?'done':''}" onclick="toggleComplete('${currentDay}','${s.id}')">${isC?'✓':''}</div>
                 <div class="sc-id">${s.seq}. ${s.id}</div>
             </div>
-            <!-- 中：日期標籤 + 地址 -->
+            <!-- 中間內容區 -->
             <div class="sc-mid">
                 <div class="sc-day-tag">${DAY_NAMES[currentDay]||''}<button class="sc-dj-btn">DJ</button></div>
+                ${imgs.length>0?`
+                <!-- 圖片行：縮略圖 + 新增按鈕 平排 -->
+                <div class="sc-img-row">
+                    ${imgs.map((im,idx)=>`
+                    <div class="sc-thumb-wrap">
+                        <img class="sc-thumb" src="${im.data}" onclick="openLightbox('${k}',${idx})" alt="">
+                        <button class="sc-thumb-del" onclick="event.stopPropagation();requestDeleteImage('${k}','${im.id}')">✕</button>
+                    </div>`).join('')}
+                    ${imgs.length<2?`<div style="width:60px;height:60px;border-radius:8px;border:2px dashed #ccc;background:#fafafa;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;color:#bbb;flex-shrink:0;" onclick="openImgModal('${k}')" title="添加照片">+</div>`:''}
+                </div>`:''}
+                <!-- 地址（在圖片下方，自動換行） -->
                 <div class="sc-addr">${s.addr||''}</div>
                 ${isC?`<div class="sc-time-row"><span class="sc-time" onclick="openTimeModal('${k}')">✅ ${timeStr} ✏️</span>${imgs.length?`<span class="photo-badge">📷${imgs.length}</span>`:''}</div>`:''}
-                ${isC && imgs.length?`
-                <div class="sc-img-add-area">
-                    <div class="sc-img-thumbs">
-                        ${imgs.map((im,idx)=>`
-                        <div class="sc-thumb-wrap">
-                            <img class="sc-thumb" src="${im.data}" onclick="openLightbox('${k}',${idx})" alt="">
-                            <button class="sc-thumb-del" onclick="event.stopPropagation();requestDeleteImage('${k}','${im.id}')">✕</button>
-                        </div>`).join('')}
-                        ${imgs.length<2?`<div class="sc-add-btn" onclick="openImgModal('${k}')">+</div>`:''}
-                    </div>
-                </div>`:(isC&&!imgs.length?`
-                <div class="sc-img-add-area" style="margin-top:6px;">
-                    <div class="sc-img-thumbs">
-                        <div class="sc-add-btn" onclick="openImgModal('${k}')">+添加照片</div>
-                    </div>
-                </div>`:'')}
             </div>
-            <!-- 右：縮圖 -->
-            <div class="sc-right" onclick="${firstImg?`openLightbox('${k}',0)`:''}" title="查看照片">
+            <!-- 右：首張縮圖預覽 -->
+            <div class="sc-right" onclick="${firstImg?`openLightbox('${k}',0)`:''}" title="${firstImg?'查看照片':''}">
                 ${firstImg?`<img src="${firstImg}" alt="">`:`<span class="sc-no-img">📷</span>`}
-                ${firstImg&&isC?`<button class="sc-img-del" onclick="event.stopPropagation();requestDeleteImage('${k}','${imgs[0].id}')">✕</button>`:''}
             </div>
         </div>`;
     }).join('');
@@ -789,17 +779,46 @@ function renderGallery(){
     const g=document.getElementById('galleryGrid');
     let items=[];
     for(const[k,imgs]of Object.entries(imageCache))
-        imgs.forEach((im,idx)=>items.push({k,idx,data:im.data}));
+        imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:im.time||0}));
     items.sort((a,b)=>(b.time||0)-(a.time||0));
 
-    g.innerHTML=items.length?items.map(it=>`
-        <div class="gal-item" onclick="openLightbox('${it.k}',${it.idx})">
+    g.innerHTML=items.length?items.map(it=>{
+        const imId=imageCache[it.k][it.idx].id;
+        return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
+            onclick="openLightbox('${it.k}',${it.idx})"
+            ontouchstart="galleryTouchStart(event)" ontouchend="galleryTouchEnd(event)">
             <img src="${it.data}" alt="">
-            <div class="gal-del-overlay" onclick="event.stopPropagation();requestDeleteImage('${it.k}','${imageCache[it.k][it.idx].id}');closeLightbox();">🗑️</div>
-            <div class="gal-hint">長按刪除</div>
-        </div>`).join('')
-        :'<div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa;">尚無圖片</div>';
+            <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}"
+                onclick="event.stopPropagation();requestDeleteImage('${it.k}','${imId}');closeLightbox();this.closest('.gal-item').style.display='none';">🗑️</div>
+        </div>`;
+    }).join(''):'<div style="grid-column:1/-1;text-align:center;padding:40px;color:#aaa;">尚無圖片</div>';
 }
+
+// Gallery long-press delete
+let _gtTimer=null, _gtEl=null;
+function galleryTouchStart(e){
+    if(e.touches.length!==1)return;
+    const el=e.currentTarget;
+    _gtEl=el;
+    _gtTimer=setTimeout(()=>{
+        // Long press detected
+        if(_gtEl){const overlay=_gtEl.querySelector('.gal-del-overlay');if(overlay)overlay.classList.add('show');}
+    },500);
+}
+function galleryTouchEnd(e,k,imgId){
+    clearTimeout(_gtTimer);_gtTimer=null;
+}
+function showGalleryDel(el){
+    const overlay=el.querySelector('.gal-del-overlay');if(overlay)overlay.classList.toggle('show');
+}
+
+// Close gallery overlay when clicking outside or opening lightbox
+const _origLB=openLightbox;
+openLightbox=function(k,idx){
+    // Hide any open gallery overlays first
+    document.querySelectorAll('.gal-del-overlay.show').forEach(o=>o.classList.remove('show'));
+    _origLB(k,idx);
+};
 
 // ============================================================
 // ===== 操作 =====
