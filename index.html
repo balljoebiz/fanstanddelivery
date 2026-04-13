@@ -898,40 +898,61 @@ async function init(){initFB();renderDayTabs();await openDB();loadData();imageCa
 function openRptModal(){document.getElementById('rptModal').style.display='flex';}
 function closeRptModal(){document.getElementById('rptModal').style.display='none';}
 
-// Report A: 清單版 → JPG（參照圖3：3列表格 日期/店號/數量）
+// Report A: 清單版 → JPG（按實際完成日期分組，5間一行等寬格子表格）
 async function genRptA(){
     closeRptModal();
     const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);
     if(!entries.length){showToast('❌ 尚無已完成項目','error');return;}
-    // 按日期分組，提取店號列表
+    // 按【實際完成日期】分組（從 time 戳提取真實 M/D）
     const groups={};
     entries.forEach(([k,d])=>{
-        const dk=k.substring(0,k.lastIndexOf('-')),sid=k.substring(k.lastIndexOf('-')+1);
-        if(!groups[dk])groups[dk]=[];
-        if(!groups[dk].includes(sid))groups[dk].push(sid);
+        const sid=k.substring(k.lastIndexOf('-')+1);
+        const dt=new Date(d.time),dateKey=`${dt.getMonth()+1}/${dt.getDate()}`;
+        if(!groups[dateKey])groups[dateKey]=[];
+        groups[dateKey].push(sid);
     });
-    // 日期顯示映射（2026年4月日曆：4/1=三, 4/8=三(wed), 4/9=四(thu), 4/10=五(fri), 4/13=一(mon)）
-    const DL={mon:'4/13',tue:'4/14',wed:'4/8',thu:'4/9',fri:'4/10',sat:'4/11',sun:'4/12'};
-    // 排序日期順序
-    const dayOrder=['mon','tue','wed','thu','fri','sat','sun'];
+    // 按 M/D 數值排序（先月後日）
+    const sortedDates=Object.keys(groups).sort((a,b)=>{
+        const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number);
+        return am!==bm?am-bm:ad-bd;
+    });
     let total=0,tbody='';
-    dayOrder.forEach(dk=>{
+    sortedDates.forEach(ds=>{
+        const sids=groups[ds];total+=sids.length;
+        // 等寬格子表格：每行剛好5間，不足補空格
+        let rows='';
+        for(let i=0;i<sids.length;i+=5){
+            const row=sids.slice(i,i+5);
+            while(row.length<5)row.push('');
+            rows+='<tr>'+row.map(s=>`<td class="ra-cell">${s}</td>`).join('')+'</tr>';
+        }
+        const nRows=Math.ceil(sids.length/5);
+        tbody+=`<tr><td class="ra-d" rowspan="${nRows}">${ds}</td><td colspan="2"><table style="width:100%;border-collapse:collapse;">${rows}</table></td></tr>`;
+    });
+        dayOrder.forEach(dk=>{
         if(!groups[dk]||!groups[dk].length)return;
         const cnt=groups[dk].length;total+=cnt;
         const ds=DL[dk]||dk;
-        tbody+=`<tr><td class="ra-d">${ds}</td><td class="ra-s">${groups[dk].join(', ')}</td><td class="ra-c">${cnt}</td></tr>`;
+        // 每5間插入<br>實現整齊排列
+        let formattedStores='';
+        groups[dk].forEach((sid,i)=>{
+            formattedStores+=sid+(i<groups[dk].length-1?', ':');
+            if((i+1)%5===0&&i<groups[dk].length-1)formattedStores+='<br>';
+        });
+        tbody+=`<tr><td class="ra-d">${ds}</td><td class="ra-s">${formattedStores}</td><td class="ra-c">${cnt}</td></tr>`;
     });
     const now=new Date().toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
     const html=`<div id="rptAContent" style="width:794px;background:#fff;padding:48px;box-sizing:border-box;font-family:-apple-system,'PingFang SC','Microsoft JhengHei',sans-serif;">
         <h1 style="text-align:center;font-size:28px;font-weight:700;color:#222;margin-bottom:32px;letter-spacing:1px;">Small Fan Stand 送貨完成列表</h1>
-        <style>.ra-d{font-weight:700;color:#34c759!important;font-size:20px!important;vertical-align:middle!important;}
-.ra-s{font-size:16px!important;line-height:1.85!important;word-break:break-all!important;letter-spacing:.5px!important;}
-.ra-c{font-weight:700;color:#0071e3!important;font-size:22px!important;text-align:center!important;vertical-align:middle!important;}</style>
+        <style>
+        .ra-d{font-weight:700;color:#34c759!important;font-size:20px!important;vertical-align:middle!important;border:1px solid #e0e0e0!important;}
+        .ra-cell{text-align:center!important;font-size:16px!important;font-weight:500!important;padding:10px 4px!important;border:1px solid #e0e0e0!important;min-width:0!important;word-break:break-all!important;}
+        </style>
         <table style="width:100%;border-collapse:collapse;border:2px solid #e0e0e0;">
         <thead><tr style="background:#f7f7f7;">
-            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:12%;color:#333;">日期</th>
-            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;color:#333;">店號</th>
-            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:10%;color:#333;">數量</th>
+            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:14%;color:#333;">日期</th>
+            <th style="border:1px solid #ddd;padding:14px 8px;font-size:17px;color:#333;">店號（每行5間）</th>
+            <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:12%;color:#333;">數量</th>
         </tr></thead>
         <tbody>${tbody}</tbody></table>
         <p style="text-align:center;margin-top:24px;font-size:16px;color:#888;">總計 ${total} 項</p>
@@ -950,23 +971,23 @@ async function genRptB(){
     const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);
     if(!entries.length){showToast('❌ 尚無已完成項目','error');return;}
     showToast('⏳ 正在生成圖文報告...','info');
-    // 按日期分組（每條記錄帶完整數據）
+    // 按【實際完成日期】分組（每條記錄帶完整數據）
     const days={};
     entries.forEach(([k,d])=>{
-        const dk=k.substring(0,k.lastIndexOf('-'));
-        if(!days[dk])days[dk]=[];
-        days[dk].push({k,sid:k.substring(k.lastIndexOf('-')+1),time:d.time,imgs:imageCache[k]||[]});
+        const dt=new Date(d.time),dateKey=`${dt.getMonth()+1}/${dt.getDate()}`;
+        if(!days[dateKey])days[dateKey]=[];
+        days[dateKey].push({k,sid:k.substring(k.lastIndexOf('-')+1),time:d.time,imgs:imageCache[k]||[]});
     });
-    // 修正日期映射（2026年4月日曆）
-    const DL={mon:'4/13',tue:'4/14',wed:'4/8',thu:'4/9',fri:'4/10',sat:'4/11',sun:'4/12'};
-    const DN={mon:'一',tue:'二',wed:'三',thu:'四',fri:'五',sat:'六',sun:'日'};
+    // 按實際 M/D 排序
+    const sortedDates=Object.keys(days).sort((a,b)=>{
+        const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number);
+        return am!==bm?am-bm:ad-bd;
+    });
     const PER_PAGE=6,zip=new JSZip();
-    let gIdx=0; // 全局頁碼（跨日期累計）
-    // 嚴格按日期順序迭代
-    const dayOrder=['mon','tue','wed','thu','fri','sat','sun'];
-    for(const dk of dayOrder){
-        const stores=days[dk];if(!stores||!stores.length)continue;
-        const dStr=DL[dk]||dk,wStr=DN[dk]||'',dateLabel=`${dStr}`;
+    let gIdx=0;
+    for(const dateKey of sortedDates){
+        const stores=days[dateKey];if(!stores||!stores.length)continue;
+        const dateLabel=`${dateKey}`;
         // 該日期內部分頁（每頁最多6店，不跨日）
         for(let si=0;si<stores.length;si+=PER_PAGE){
             gIdx++;const pg=stores.slice(si,si+PER_PAGE);let cards='';
