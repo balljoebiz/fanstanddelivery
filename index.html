@@ -929,19 +929,7 @@ async function genRptA(){
         const nRows=Math.ceil(sids.length/5);
         tbody+=`<tr><td class="ra-d" rowspan="${nRows}">${ds}</td><td colspan="2"><table style="width:100%;border-collapse:collapse;">${rows}</table></td></tr>`;
     });
-        dayOrder.forEach(dk=>{
-        if(!groups[dk]||!groups[dk].length)return;
-        const cnt=groups[dk].length;total+=cnt;
-        const ds=DL[dk]||dk;
-        // 每5間插入<br>實現整齊排列
-        let formattedStores='';
-        groups[dk].forEach((sid,i)=>{
-            formattedStores+=sid+(i<groups[dk].length-1?', ':');
-            if((i+1)%5===0&&i<groups[dk].length-1)formattedStores+='<br>';
-        });
-        tbody+=`<tr><td class="ra-d">${ds}</td><td class="ra-s">${formattedStores}</td><td class="ra-c">${cnt}</td></tr>`;
-    });
-    const now=new Date().toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+        
     const html=`<div id="rptAContent" style="width:794px;background:#fff;padding:48px;box-sizing:border-box;font-family:-apple-system,'PingFang SC','Microsoft JhengHei',sans-serif;">
         <h1 style="text-align:center;font-size:28px;font-weight:700;color:#222;margin-bottom:32px;letter-spacing:1px;">Small Fan Stand 送貨完成列表</h1>
         <style>
