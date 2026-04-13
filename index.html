@@ -562,8 +562,7 @@ function renderList(){
                 </div>
                 ${imgs.length>0?`<div class="sc-img-row">${imgs.map((im,idx)=>`
                     <div class="sc-thumb-w"><img class="sc-thumb" src="${im.data}" onclick="openLb('${k}',${idx})" alt="">
-                    <button class="sc-thumb-del" onclick="event.stopPropagation();reqDel('${k}','${im.id}')">✕</button></div>`).join('')}
-                    ${imgs.length<2?`<div class="sc-add-small" onclick="openIM('${k}')">+</div>`:''}</div>`:''}
+                    <button class="sc-thumb-del" onclick="event.stopPropagation();reqDel('${k}','${im.id}')">✕</button></div>`).join('')}</div>`:''}
                 <div class="store-addr">${s.addr}</div>
                 ${isC?`<div class="sc-time-line"><span class="sc-time-txt" onclick="openTm('${k}')">✅ ${ts} ✏️</span></div>`:''}
             </div>
@@ -587,7 +586,7 @@ function renderCompleted(){
         return `<div class="ct-row">
             <span class="ct-r-time" onclick="openTm('${k}')">${fmtTime(d.time)} ✏️</span>
             <span class="ct-r-store">${sid}${imgs.length?`<span class="pb-count">📷${imgs.length}</span>`:''}</span>
-            <span class="ct-r-img">${imgs.length?`<img src="${imgs[0].data}" width="32" height="32" style="border-radius:6px;" onclick="openLb('${k}',0)">`:'-'}</span>
+            <span class="ct-r-img">${imgs.length?imgs.map((im,idx)=>`<img src="${im.data}" width="32" height="32" style="border-radius:6px;margin-right:3px;" onclick="openLb('${k}',${idx})">`).join(''):(imgs.length<2?`<button onclick="openIM('${k}')" style="font-size:16px;background:#e8f4fd;border:1px dashed #0071e3;border-radius:6px;padding:2px 8px;cursor:pointer;color:#0071e3;">+ 圖片</button>`:'-')}</span>
         </div>`}).join('');
 }
 
@@ -619,14 +618,29 @@ function renderGallery(){
     items.sort((a,b)=>(b.time||0)-(a.time||0));
     g.innerHTML=items.length?items.map(it=>{
         const iid=imageCache[it.k][it.idx].id;
-        return `<div class="gal-item" onclick="openLb('${it.k}',${it.idx})" ontouchstart="galTS(event)" ontouchend="galTE()">
-            <img src="${it.data}" alt=""><div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}"
-            onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').style.display='none';">🗑️</div><div class="gal-hint">長按刪除</div></div>`;
+        return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
+            onclick="openLb('${it.k}',${it.idx})"
+            ontouchstart="galTS(event)" ontouchend="galTE(event)" ontouchmove="galTM(event)">
+            <img src="${it.data}" alt="">
+            <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}" onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').remove();">🗑️</div>
+            <div class="gal-hint">長按刪除</div></div>`;
     }).join(''):'<div style="grid-column:1/-1;text-align:center;padding:35px;color:#aaa;">尚無圖片</div>';
 }
-let _gtTimer=null,_gtEl=null;
-function galTS(e){if(e.touches.length!==1)return;_gtEl=e.currentTarget;_gtTimer=setTimeout(()=>{if(_gtEl){const o=_gtEl.querySelector('.gal-del-overlay');if(o)o.style.opacity='1';}},500);}
-function galTE(){clearTimeout(_gtTimer);_gtTimer=null;}
+let _gtTimer=null,_gtEl=null,_gtMoved=false,_gtLP=false;
+function galTS(e){
+    if(e.touches.length!==1)return;
+    _gtEl=e.currentTarget;_gtMoved=false;_gtLP=false;
+    _gtTimer=setTimeout(()=>{_gtLP=true;if(_gtEl){const o=_gtEl.querySelector('.gal-del-overlay');if(o)o.style.opacity='1';}},500);
+}
+function galTE(e){
+    clearTimeout(_gtTimer);_gtTimer=null;
+    // If it was a long press + tap on overlay, don't trigger Lightbox
+    if(_gtLP&&e.type==='touchend'){
+        e.preventDefault();
+        if(_gtEl)_gtEl._lpHandled=true;
+    }
+}
+function galTM(e){if(_gtTimer){clearTimeout(_gtTimer);_gtTimer=null;}}
 
 // ============================================================
 // ACTIONS
