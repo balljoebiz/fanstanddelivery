@@ -440,7 +440,7 @@ async function doChgPwd(){
     if(!ok||!fDB){e.textContent='雲端連接失敗';e.style.display='block';return;}
     try{const nvv=PWD_VER+1;await fDB.ref('passwordConfig').set({password:nv,version:nvv,updatedAt:Date.now()});
         ACCESS_PWD=nv;PWD_VER=nvv;alert('✅ 密碼已修改！');closeChgPwd();
-        sessionStorage.remove('sfsV15_v');sessionStorage.setItem('sfsV15_pv',nvv.toString());
+        sessionStorage.removeItem('sfsV15_v');sessionStorage.setItem('sfsV15_pv',nvv.toString());
         document.getElementById('pwdScreen').classList.remove('hidden');document.getElementById('mainC').style.display='none';
     }catch(ex){e.textContent='失敗:'+ex.message;e.style.display='block';}
 }
