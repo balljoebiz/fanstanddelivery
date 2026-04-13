@@ -419,7 +419,9 @@ async function ensureFB(){
 }
 async function checkPwd(){
     const inp=document.getElementById('pwdInput').value.trim();
-    if(isFBReady&&fDB)await loadCloudPwd();
+    // 強制確保 Firebase 已連接（解決「改過密碼後無法登入」的問題）
+    const fbOk=await ensureFB();
+    if(fbOk&&fDB)await loadCloudPwd();
     if(inp===ACCESS_PWD){
         sessionStorage.setItem('sfsV15_v','true');sessionStorage.setItem('sfsV15_pv',PWD_VER.toString());
         document.getElementById('pwdScreen').classList.add('hidden');document.getElementById('mainC').style.display='block';
