@@ -3,227 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SFS 送貨系統 v11 (含圖片)</title>
+    <title>SFS 送貨系統 v12</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f7;
-            padding-bottom: 80px;
-            overflow-x: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: white;
-            padding: 15px 20px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; padding-bottom: 80px; overflow-x: hidden; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 15px 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .header h1 { font-size: 20px; font-weight: 600; }
-        .day-selector {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            overflow-x: auto;
-            padding-bottom: 5px;
-        }
-        .day-btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.3s;
-        }
+        .day-selector { display: flex; gap: 10px; margin-top: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .day-btn { padding: 8px 16px; border: none; border-radius: 20px; background: rgba(255,255,255,0.1); color: white; font-size: 14px; cursor: pointer; white-space: nowrap; transition: all 0.3s; }
         .day-btn.active { background: #0071e3; }
         
         /* Stats */
-        .stats-row {
-            display: flex;
-            gap: 10px;
-            padding: 15px;
-            background: white;
-            margin: 15px;
-            border-radius: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        .stat-item {
-            flex: 1;
-            text-align: center;
-            padding: 12px 8px;
-            background: #f8f9fa;
-            border-radius: 12px;
-        }
+        .stats-row { display: flex; gap: 10px; padding: 15px; background: white; margin: 15px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .stat-item { flex: 1; text-align: center; padding: 12px 8px; background: #f8f9fa; border-radius: 12px; }
         .stat-num { font-size: 24px; font-weight: 700; }
         .stat-label { font-size: 12px; color: #86868b; margin-top: 4px; }
         
-        /* Sync Buttons */
-        .sync-section { padding: 0 15px 15px; display:flex; gap:10px; }
-        .sync-btn {
-            flex:1;
-            padding: 14px 10px;
-            border: none;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+        /* Sync */
+        .sync-section { padding: 0 15px 15px; display:flex; flex-wrap:wrap; gap:8px; }
+        .sync-btn { flex:1; min-width:90px; padding: 14px 8px; border: none; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .sync-upload { background: #0071e3; color: white; }
         .sync-download { background: #5856d6; color: white; }
         .sync-reset { background: linear-gradient(135deg,#ff6b6b,#ee5a52); color: white; }
-        .sync-status {
-            text-align:center; font-size:13px; color:#86868b; padding:8px;
-        }
+        .sync-export { background: linear-gradient(135deg,#34c759,#30d158); color: white; }
+        .sync-status { text-align:center; font-size:13px; color:#86868b; padding:8px; clear:both; }
         
         /* Store Card */
         .store-list { padding: 15px; }
         .day-section { display:none; }
         .day-section.active { display:block; }
-        .store-card {
-            background: white;
-            border-radius: 14px;
-            padding: 14px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: all 0.2s;
-        }
+        .store-card { background: white; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.2s; }
         .store-card.completed { opacity:0.75; background:#f0f9ff; }
-        .store-top {
-            display:flex; align-items:center; justify-content:space-between;
-            margin-bottom:8px;
-        }
+        .store-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
         .store-id { font-size:22px; font-weight:700; color:#0071e3; }
-        .complete-btn {
-            width:40px; height:40px; border-radius:50%;
-            border:3px solid #e0e0e0; background:white; cursor:pointer;
-            transition:all 0.3s; display:flex; align-items:center;
-            justify-content:center; font-size:18px; color:white;
-        }
+        .complete-btn { width:40px; height:40px; border-radius:50%; border:3px solid #e0e0e0; background:white; cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; font-size:18px; color:white; }
         .complete-btn.completed { background:#34c759; border-color:#34c759; }
         
+        /* Time row */
+        .time-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-top:1px solid #eee; margin-top:4px; }
+        .time-label { font-size:12px; color:#86868b; }
+        .time-value { font-size:13px; color:#34c759; font-weight:500; cursor:pointer; padding:4px 10px; border-radius:8px; transition:all 0.2s; }
+        .time-value:hover { background:#f0f0f5; }
+        .edit-icon { font-size:12px; margin-left:4px; color:#999; }
+
         /* Image Section */
         .img-section { margin-top:10px; }
-        .img-label { font-size:12px; color:#86868b; margin-bottom:6px; }
-        .img-thumbs { display:flex; gap:8px; flex-wrap:wrap; }
-        .img-thumb {
-            width:70px; height:70px; border-radius:10px;
-            object-fit:cover; cursor:pointer; border:2px solid transparent;
-            transition:all 0.2s;
-        }
+        .img-label { font-size:12px; color:#86868b; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; }
+        .img-thumbs { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+        .img-thumb-wrap { position:relative; }
+        .img-thumb { width:70px; height:70px; border-radius:10px; object-fit:cover; cursor:pointer; border:2px solid transparent; transition:all 0.2s; }
         .img-thumb:hover { transform:scale(1.05); }
-        .img-add-btn {
-            width:70px; height:70px; border-radius:10px; border:2px dashed #ccc;
-            background:#fafafa; cursor:pointer; display:flex; align-items:center;
-            justify-content:center; font-size:24px; color:#999;
-            transition:all 0.2s;
-        }
+        .img-del-btn { position:absolute; top:-6px; right:-6px; width:20px; height:20px; background:#ff3b30; color:white; border-radius:50%; border:none; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; opacity:0; transition:opacity 0.2s; z-index:5; }
+        .img-thumb-wrap:hover .img-del-btn { opacity:1; }
+        .img-add-btn { width:70px; height:70px; border-radius:10px; border:2px dashed #ccc; background:#fafafa; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:24px; color:#999; transition:all 0.2s; flex-shrink:0; }
         .img-add-btn:hover { border-color:#0071e3; color:#0071e3; }
-        .no-images-hint { font-size:12px; color:#bbb; }
         
         /* Tabs */
-        .tab-bar {
-            position:fixed; bottom:0; left:0; right:0;
-            background:white; display:flex; box-shadow:0 -2px 10px rgba(0,0,0,0.1); z-index:200;
-        }
-        .tab-item {
-            flex:1; padding:12px 0; text-align:center; cursor:pointer;
-            border:none; background:transparent; color:#86868b; font-size:11px; transition:all 0.2s;
-        }
+        .tab-bar { position:fixed; bottom:0; left:0; right:0; background:white; display:flex; box-shadow:0 -2px 10px rgba(0,0,0,0.1); z-index:200; }
+        .tab-item { flex:1; padding:12px 0; text-align:center; cursor:pointer; border:none; background:transparent; color:#86868b; font-size:11px; transition:all 0.2s; }
         .tab-item.active { color:#0071e3; }
         .tab-icon { font-size:22px; margin-bottom:2px; }
         .page { display:none; }
         .page.active { display:block; }
         
         /* Completed List */
-        .completed-time { color:#34c759; font-size:13px; font-weight:500; }
-        .completed-img-count { 
-            font-size:11px; background:#ff9500; color:white;
-            padding:2px 8px; border-radius:10px; margin-left:8px;
-        }
+        .completed-time { color:#34c759; font-size:13px; font-weight:500; cursor:pointer; padding:2px 6px; border-radius:6px; transition:background 0.2s; }
+        .completed-time:hover { background:#f0f0f5; }
+        .completed-img-count { font-size:11px; background:#ff9500; color:white; padding:2px 8px; border-radius:10px; margin-left:8px; }
         
         /* Gallery Grid */
-        .gallery-grid {
-            display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
-        }
-        .gallery-item {
-            aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer;
-        }
+        .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+        .gallery-item { aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer; position:relative; }
         .gallery-item img { width:100%; height:100%; object-fit:cover; }
+        .gallery-del-overlay { position:absolute; inset:0; background:rgba(255,59,48,0.7); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s; font-size:28px; color:white; }
+        .gallery-item:hover .gallery-del-overlay { opacity:1; }
         
         /* Password Screen */
-        .password-screen {
-            position:fixed; inset:0;
-            background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-            display:flex; align-items:center; justify-content:center; z-index:9999;
-        }
+        .password-screen { position:fixed; inset:0; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); display:flex; align-items:center; justify-content:center; z-index:9999; }
         .password-screen.hidden { display:none; }
-        .password-box {
-            background:white; padding:40px 30px; border-radius:20px;
-            text-align:center; width:90%; max-width:350px;
-        }
+        .password-box { background:white; padding:40px 30px; border-radius:20px; text-align:center; width:90%; max-width:350px; }
         .password-box h2 { margin-bottom:10px; color:#333; }
         .password-box p { color:#666; margin-bottom:20px; font-size:14px; }
-        .password-input {
-            width:100%; padding:14px; border:2px solid #e0e0e0; border-radius:10px;
-            font-size:18px; text-align:center; margin-bottom:15px;
-        }
+        .password-input { width:100%; padding:14px; border:2px solid #e0e0e0; border-radius:10px; font-size:18px; text-align:center; margin-bottom:15px; }
         .password-input:focus { border-color:#667eea; outline:none; }
-        .password-btn {
-            width:100%; padding:14px; background:linear-gradient(135deg,#667eea,#764ba2);
-            color:white; border:none; border-radius:10px; font-size:16px;
-            font-weight:600; cursor:pointer;
-        }
+        .password-btn { width:100%; padding:14px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; }
         .password-error { color:#ff3b30; font-size:14px; margin-top:10px; display:none; }
+        .pwd-change-link { color:#667eea; font-size:13px; margin-top:16px; cursor:pointer; text-decoration:underline; }
         
-        /* Lightbox */
-        .lightbox {
-            position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999;
-            display:none; align-items:center; justify-content:center;
-        }
+        /* Change Password Panel */
+        .chgpwd-panel { display:none; margin-top:20px; padding-top:16px; border-top:1px solid #eee; }
+        .chgpwd-panel.show { display:block; animation:fadeInUp 0.3s ease; }
+        .chgpwd-title { font-size:14px; font-weight:600; margin-bottom:12px; color:#333; }
+        .chgpwd-input { width:100%; padding:10px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; margin-bottom:8px; text-align:center; }
+        .chgpwd-btn { width:100%; padding:12px; background:#34c759; color:white; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+        .chgpwd-error { color:#ff3b30; font-size:12px; margin-top:8px; display:none; }
+        .chgpwd-success { color:#34c759; font-size:12px; margin-top:8px; display:none; }
+        
+        /* Lightbox with delete */
+        .lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999; display:none; align-items:center; justify-content:center; flex-direction:column; }
         .lightbox.active { display:flex; }
-        .lightbox-img {
-            max-width:95vw; max-height:90vh; object-fit:contain;
-            border-radius:8px;
-        }
-        .lightbox-close {
-            position:absolute; top:15px; right:20px; font-size:36px;
-            color:white; cursor:pointer; z-index:100001;
-        }
-        .lightbox-nav {
-            position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
-            color:white; font-size:14px; background:rgba(255,255,255,0.2);
-            padding:8px 20px; border-radius:20px;
-        }
+        .lightbox-img { max-width:95vw; max-height:80vh; object-fit:contain; border-radius:8px; }
+        .lightbox-close { position:absolute; top:15px; right:20px; font-size:36px; color:white; cursor:pointer; z-index:100001; background:rgba(0,0,0,0.3); width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; line-height:1; }
+        .lightbox-nav { color:white; font-size:14px; background:rgba(255,255,255,0.2); padding:8px 20px; border-radius:20px; margin-top:12px; }
+        .lightbox-delete { position:absolute; bottom:60px; left:50%; transform:translateX(-50%); background:#ff3b30; color:white; border:none; padding:10px 24px; border-radius:25px; font-size:14px; font-weight:600; cursor:pointer; }
+        
+        /* Modal for time edit */
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99997; display:none; align-items:center; justify-content:center; }
+        .modal-overlay.show { display:flex; }
+        .modal-box { background:white; border-radius:16px; padding:24px; width:90%; max-width:340px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        .modal-title { font-size:17px; font-weight:600; margin-bottom:16px; text-align:center; }
+        .modal-input { width:100%; padding:14px; border:2px solid #e0e0e0; border-radius:10px; font-size:18px; text-align:center; margin-bottom:16px; }
+        .modal-input:focus { border-color:#0071e3; outline:none; }
+        .modal-actions { display:flex; gap:10px; }
+        .modal-btn { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
+        .modal-cancel { background:#f0f0f5; color:#333; }
+        .modal-save { background:#0071e3; color:white; }
         
         /* Toast */
-        .toast-container {
-            position:fixed; top:80px; left:50%; transform:translateX(-50%);
-            z-index:99998;
-        }
-        .toast {
-            padding:12px 24px; border-radius:25px; color:white;
-            font-size:14px; font-weight:500;
-            animation:fadeInUp 0.3s ease; margin-bottom:8px;
-            max-width:90vw; word-break:break-all;
-        }
+        .toast-container { position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:99998; }
+        .toast { padding:12px 24px; border-radius:25px; color:white; font-size:14px; font-weight:500; animation:fadeInUp 0.3s ease; margin-bottom:8px; max-width:90vw; word-break:break-all; }
         .toast.success { background:#34c759; }
         .toast.error { background:#ff3b30; }
         .toast.info { background:#0071e3; }
-        @keyframes fadeInUp {
-            from{opacity:0;transform:translateX(-50%)translateY(-10px);}
-            to{opacity:1;transform:translateX(-50%)translateY(0);}
-        }
+        @keyframes fadeInUp { from{opacity:0;transform:translateX(-50%)translateY(-10px);} to{opacity:1;transform:translateX(-50%)translateY(0);} }
         @keyframes fadeOut { from{opacity:1;} to{opacity:0;} }
         
-        /* Hidden file input */
+        /* Confirm Dialog */
+        .confirm-dialog {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 99998; display: none; align-items: center; justify-content: center;
+        }
+        .confirm-dialog.show { display: flex; }
+        .confirm-box { background: white; border-radius: 16px; padding: 24px; width: 85%; max-width: 320px; text-align: center; }
+        .confirm-msg { font-size: 15px; margin-bottom: 20px; line-height: 1.5; }
+        .confirm-btns { display: flex; gap: 10px; }
+        .confirm-btns button { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .confirm-yes { background: #ff3b30; color: white; }
+        .confirm-no { background: #e0e0e0; color: #333; }
+        
         #fileInput { display:none; }
     </style>
 </head>
@@ -234,17 +154,27 @@
     <div class="password-box">
         <h2>🔒 訪問受限</h2>
         <p>請輸入密碼以繼續</p>
-        <input type="password" id="passwordInput" class="password-input"
-               placeholder="輸入密碼" maxlength="20" autocomplete="off">
+        <input type="password" id="passwordInput" class="password-input" placeholder="輸入密碼" maxlength="20" autocomplete="off">
         <button class="password-btn" onclick="checkPassword()">進入</button>
         <div id="passwordError" class="password-error">密碼錯誤</div>
+        <div class="pwd-change-link" onclick="toggleChangePassword()">修改密碼</div>
+        
+        <!-- Change Password Panel -->
+        <div class="chgpwd-panel" id="changePwdPanel">
+            <div class="chgpwd-title">🔐 修改密碼</div>
+            <input type="password" id="oldPwdInput" class="chgpwd-input" placeholder="舊密碼" maxlength="20">
+            <input type="password" id="newPwdInput" class="chgpwd-input" placeholder="新密碼（至少4位）" maxlength="20">
+            <button class="chgpwd-btn" onclick="doChangePassword()">確認修改</button>
+            <div id="chgPwdError" class="chgpwd-error"></div>
+            <div id="chgPwdSuccess" class="chgpwd-success"></div>
+        </div>
     </div>
 </div>
 
 <!-- Main -->
 <div id="mainContent" style="display:none;">
     <div class="header">
-        <h1>📦 SFS 送貨系統 v11</h1>
+        <h1>📦 SFS 送貨系統 v12</h1>
         <div class="day-selector">
             <button class="day-btn active" data-day="wed">4/8</button>
             <button class="day-btn" data-day="thu">4/9</button>
@@ -264,6 +194,7 @@
         <button class="sync-btn sync-upload" id="uploadBtn" onclick="forceUpload()">⬆️ 上載</button>
         <button class="sync-btn sync-download" id="downloadBtn" onclick="forceDownload()">⬇️ 下載</button>
         <button class="sync-btn sync-reset" onclick="resetLocalData()">🔄 重置</button>
+        <button class="sync-btn sync-export" onclick="exportReport()">📄 報告</button>
     </div>
     <div class="sync-status" id="syncStatus">等待同步</div>
     
@@ -287,22 +218,16 @@
     <!-- Gallery Page -->
     <div class="page" id="pageGallery">
         <div class="store-list">
-            <h3 style="margin-bottom:15px;color:#333;">📷 圖片庫</h3>
+            <h3 style="margin-bottom:15px;color:#333;">📷 圖片庫（長按刪除）</h3>
             <div id="galleryGrid" class="gallery-grid"></div>
         </div>
     </div>
     
     <!-- Tab Bar -->
     <div class="tab-bar">
-        <button class="tab-item active" data-page="pageList" onclick="switchPage('pageList',this)">
-            <div class="tab-icon">📋</div><div>列表</div>
-        </button>
-        <button class="tab-item" data-page="pageCompleted" onclick="switchPage('pageCompleted',this)">
-            <div class="tab-icon">✅</div><div>已完成</div>
-        </button>
-        <button class="tab-item" data-page="pageGallery" onclick="switchPage('pageGallery',this)">
-            <div class="tab-icon">📷</div><div>圖片庫</div>
-        </button>
+        <button class="tab-item active" data-page="pageList" onclick="switchPage('pageList',this)"><div class="tab-icon">📋</div><div>列表</div></button>
+        <button class="tab-item" data-page="pageCompleted" onclick="switchPage('pageCompleted',this)"><div class="tab-icon">✅</div><div>已完成</div></button>
+        <button class="tab-item" data-page="pageGallery" onclick="switchPage('pageGallery',this)"><div class="tab-icon">📷</div><div>圖片庫</div></button>
     </div>
 </div>
 
@@ -310,550 +235,685 @@
 <input type="file" id="fileInput" accept="image/*" capture="environment">
 
 <!-- Lightbox -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+<div class="lightbox" id="lightbox">
     <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
     <img class="lightbox-img" id="lightboxImg" src="">
     <div class="lightbox-nav" id="lightboxNav"></div>
+    <button class="lightbox-delete" id="lightboxDeleteBtn" onclick="deleteLightboxImage()">🗑️ 刪除此圖片</button>
+</div>
+
+<!-- Time Edit Modal -->
+<div class="modal-overlay" id="timeModal">
+    <div class="modal-box">
+        <div class="modal-title">📝 修改完成時間</div>
+        <input type="datetime-local" class="modal-input" id="timeModalInput">
+        <div class="modal-actions">
+            <button class="modal-btn modal-cancel" onclick="closeTimeModal()">取消</button>
+            <button class="modal-btn modal-save" onclick="saveTimeEdit()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-box">
+        <div class="confirm-msg" id="confirmMsg">確定要刪除嗎？</div>
+        <div class="confirm-btns">
+            <button class="confirm-no" onclick="closeConfirm()">取消</button>
+            <button class="confirm-yes" id="confirmYesBtn">確定刪除</button>
+        </div>
+    </div>
 </div>
 
 <!-- Toast -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-// ===== 密碼 =====
-const ACCESS_PASSWORD = "CS1908";
+// ============================================================
+// ===== 密碼系統（支持 Firebase 同步） =====
+// ============================================================
+let ACCESS_PASSWORD = "CS1908";
+let PASSWORD_VERSION = 0;
 
-function isPasswordVerified() { return sessionStorage.getItem('sfsVerified') === 'true'; }
+function isPasswordVerified() { return sessionStorage.getItem('sfsV12_verified') === 'true'; }
+
+// 從 Firebase 加載密碼
+async function loadCloudPassword() {
+    if (!isFirebaseReady) return false;
+    try {
+        const snap = await firebaseDB.ref('passwordConfig').once('value');
+        const cfg = snap.val();
+        if (cfg && cfg.password) {
+            ACCESS_PASSWORD = cfg.password || "CS1908";
+            PASSWORD_VERSION = cfg.version || 0;
+            console.log('[PWD] 雲端密碼已載入, ver:', PASSWORD_VERSION);
+            
+            // 檢查版本
+            const localVer = parseInt(sessionStorage.getItem('sfsV12_pwdVer')||'-1');
+            if (PASSWORD_VERSION > localVer) {
+                sessionStorage.removeItem('sfsV12_verified');
+                sessionStorage.removeItem('sfsV12_pwdVer');
+                showToast('⚠️ 密碼已更新，請重新登入','info');
+            }
+            return true;
+        } else {
+            // 初始化默認
+            await firebaseDB.ref('passwordConfig').set({ password:"CS1908", version:0, updatedAt:Date.now() });
+            return true;
+        }
+    } catch(e) { console.warn('[PWD] 加載失敗:', e); return false; }
+}
 
 async function checkPassword() {
     const input = document.getElementById('passwordInput').value.trim();
+    
+    if (!isFirebaseReady && firebaseDB) {
+        // 等待 Firebase
+        showToast('⏳ 正在驗證...','info');
+    }
+    
+    // 確保雲端密碼已加載
+    if (isFirebaseReady) await loadCloudPassword();
+    
     if (input === ACCESS_PASSWORD) {
-        sessionStorage.setItem('sfsVerified', 'true');
+        sessionStorage.setItem('sfsV12_verified','true');
+        sessionStorage.setItem('sfsV12_pwdVer', PASSWORD_VERSION.toString());
         document.getElementById('passwordScreen').classList.add('hidden');
-        document.getElementById('mainContent').style.display = 'block';
-        document.getElementById('passwordError').style.display = 'none';
+        document.getElementById('mainContent').style.display='block';
+        document.getElementById('passwordError').style.display='none';
         await init();
     } else {
-        document.getElementById('passwordError').style.display = 'block';
-        document.getElementById('passwordInput').value = '';
+        document.getElementById('passwordError').style.display='block';
+        document.getElementById('passwordInput').value='';
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('passwordInput').addEventListener('keypress', e => {
-        if (e.key === 'Enter') checkPassword();
-    });
+// 修改密碼面板切換
+function toggleChangePassword() {
+    const p = document.getElementById('changePwdPanel');
+    p.classList.toggle('show');
+    document.getElementById('chgPwdError').style.display='none';
+    document.getElementById('chgPwdSuccess').style.display='none';
+}
+
+async function doChangePassword() {
+    const oldVal = document.getElementById('oldPwdInput').value;
+    const newVal = document.getElementById('newPwdInput').value;
+    const errEl = document.getElementById('chgPwdError');
+    const sucEl = document.getElementById('chgPwdSuccess');
+    
+    errEl.style.display='none'; sucEl.style.display='none';
+    
+    if (oldVal !== ACCESS_PASSWORD) { errEl.textContent='舊密碼錯誤'; errEl.style.display='block'; return; }
+    if (newVal.length < 4) { errEl.textContent='新密碼至少4位'; errEl.style.display='block'; return; }
+    if (!isFirebaseReady) { errEl.textContent='未連接雲端'; errEl.style.display='block'; return; }
+    
+    try {
+        const newVer = PASSWORD_VERSION + 1;
+        await firebaseDB.ref('passwordConfig').set({
+            password: newVal,
+            version: newVer,
+            updatedAt: Date.now()
+        });
+        
+        ACCESS_PASSWORD = newVal;
+        PASSWORD_VERSION = newVer;
+        
+        sucEl.textContent='✅ 密碼修改成功！所有設備需用新密碼登入';
+        sucEl.style.display='block';
+        
+        // 清除當前登入狀態
+        sessionStorage.removeItem('sfsV12_verified');
+        sessionStorage.setItem('sfsV12_pwdVer', newVer.toString());
+        
+        setTimeout(() => {
+            document.getElementById('passwordScreen').classList.remove('hidden');
+            document.getElementById('mainContent').style.display='none';
+            document.getElementById('changePwdPanel').classList.remove('show');
+            document.getElementById('oldPwdInput').value='';
+            document.getElementById('newPwdInput').value='';
+            document.getElementById('passwordInput').value='';
+        }, 2000);
+        
+    } catch(e) { errEl.textContent='修改失敗:'+e.message; errEl.style.display='block'; }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    document.getElementById('passwordInput').addEventListener('keypress',e=>{if(e.key==='Enter')checkPassword();});
 });
 
-window.addEventListener('load', () => {
-    if (isPasswordVerified()) {
-        document.getElementById('passwordScreen').classList.add('hidden');
-        document.getElementById('mainContent').style.display = 'block';
-        init();
-    } else {
-        document.getElementById('passwordInput').focus();
-    }
+window.addEventListener('load', async ()=>{
+    let attempts=0;
+    const check = setInterval(async()=>{
+        attempts++;
+        if(isFirebaseReady){
+            clearInterval(check);
+            await loadCloudPassword();
+            if(isPasswordVerified()){
+                document.getElementById('passwordScreen').classList.add('hidden');
+                document.getElementById('mainContent').style.display='block';
+                await init();
+            } else { document.getElementById('passwordInput').focus(); }
+        } else if(attempts>=20){
+            clearInterval(check);
+            if(isPasswordVerified()){
+                document.getElementById('passwordScreen').classList.add('hidden');
+                document.getElementById('mainContent').style.display='block';
+                await init();
+            } else { document.getElementById('passwordInput').focus(); }
+        }
+    },500);
 });
 
+// ============================================================
 // ===== 數據定義 =====
+// ============================================================
 const originalData = {
-    wed: [
-        {id:"2130",seq:1},{id:"2140",seq:2},{id:"2160",seq:3},{id:"2170",seq:4},
-        {id:"2180",seq:5},{id:"2190",seq:6},{id:"2200",seq:7}
-    ],
-    thu: [
-        {id:"2130",seq:1},{id:"2150",seq:2},{id:"2170",seq:3},{id:"2190",seq:4},
-        {id:"2200",seq:5},{id:"2210",seq:6},{id:"2220",seq:7},{id:"2240",seq:8},
-        {id:"2250",seq:9},{id:"2260",seq:10}
-    ],
-    fri: [
-        {id:"2130",seq:1},{id:"2140",seq:2},{id:"2150",seq:3},{id:"2160",seq:4},
-        {id:"2180",seq:5},{id:"2190",seq:6},{id:"2200",seq:7},{id:"2220",seq:8}
-    ]
+    wed:[{id:'2130',seq:1},{id:'2140',seq:2},{id:'2160',seq:3},{id:'2170',seq:4},{id:'2180',seq:5},{id:'2190',seq:6},{id:'2200',seq:7}],
+    thu:[{id:'2130',seq:1},{id:'2150',seq:2},{id:'2170',seq:3},{id:'2190',seq:4},{id:'2200',seq:5},{id:'2210',seq:6},{id:'2220',seq:7},{id:'2240',seq:8},{id:'2250',seq:9},{id:'2260',seq:10}],
+    fri:[{id:'2130',seq:1},{id:'2140',seq:2},{id:'2150',seq:3},{id:'2160',seq:4},{id:'2180',seq:5},{id:'2190',seq:6},{id:'2200',seq:7},{id:'2220',seq:8}]
 };
 
-let completedStores = {};
-let imageCache = {}; // { storeKey: [base64,...] }
-let isFirebaseReady = false;
+let completedStores={};
+let imageCache={};
+let isFirebaseReady=false;
 let firebaseDB;
-let currentImgKey = null;
+let currentImgKey=null;
+
+// Time modal state
+let _editingKey=null;
 
 // IndexedDB
-let dbInstance = null;
-const DB_NAME = 'SFS_Delivery_v11';
-const DB_VERSION = 1;
-const STORE_NAME = 'images';
+let dbInstance=null;
+const DB_NAME='SFS_Delivery_v12';
+const STORE_NAME='images';
 
+// ============================================================
 // ===== Firebase =====
-function initFirebase() {
-    try {
+// ============================================================
+function initFirebase(){
+    try{
         firebase.initializeApp({
-            apiKey: "AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc",
-            authDomain: "fan-stand-delivery.firebaseapp.com",
-            databaseURL: "https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "fan-stand-delivery"
+            apiKey:"AIzaSyAX51UzjaS9uQPPyBR6TskXchFc9uR66tc",
+            authDomain:"fan-stand-delivery.firebaseapp.com",
+            databaseURL:"https://fan-stand-delivery-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId:"fan-stand-delivery"
         });
-        firebaseDB = firebase.database();
-        isFirebaseReady = true;
+        firebaseDB=firebase.database();
+        isFirebaseReady=true;
         console.log('[Firebase] ✅ OK');
-    } catch(e) {
-        console.error('[Firebase] ❌', e);
-        isFirebaseReady = false;
-    }
+    }catch(e){console.error('[Firebase] ❌',e);isFirebaseReady=false;}
 }
+function makeSafeKey(day,id){return `${day}-${id}`;}
 
-// ===== 工具函數 =====
-function makeSafeKey(day, storeId) { return `${day}-${storeId}`; }
+// ============================================================
+// ===== IndexedDB =====
+// ============================================================
+function openDB(){return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=e=>{
+        const db=e.target.result;
+        if(!db.objectStoreNames.contains(STORE_NAME))
+            db.createObjectStore(STORE_NAME,{keyPath:['storeKey','imageId']});
+    };
+    r.onsuccess=e=>{dbInstance=e.target.result;res(dbInstance);};
+    r.onerror=e=>rej(e.target.error);
+});}
 
-// ===== IndexedDB 操作 =====
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = e => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: ['storeKey', 'imageId'] });
-            }
-        };
-        req.onsuccess = e => { dbInstance = e.target.result; resolve(dbInstance); };
-        req.onerror = e => reject(e.target.error);
-    });
-}
+async function saveImageToDB(sk,id,data){const db=await openDB();return new Promise((res,rej)=>{
+    const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).put({storeKey:sk,imageId:id,imageData:data,time:Date.now()});
+    tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
+});}
 
-async function saveImageToDB(storeKey, imageId, imageData) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction([STORE_NAME], 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.put({ storeKey, imageId, imageData, time: Date.now() });
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
-}
+async function getImagesFromDB(sk){const db=await openDB();return new Promise((res,rej)=>{
+    const tx=db.transaction([STORE_NAME],'readonly');
+    tx.objectStore(STORE_NAME).getAll().onsuccess=e=>{
+        const all=(e.target.result)||[];
+        res(all.filter(r=>r.storeKey===sk));
+    };
+});}
 
-async function getImagesFromDB(storeKey) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction([STORE_NAME], 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const idx = store.index('storeKey') || null;
-        
-        let results = [];
-        if (idx) {
-            const req = idx.getAll(storeKey);
-            req.onsuccess = () => resolve(req.result || []);
-            req.onerror = () => reject(req.error);
-        } else {
-            // Fallback: scan all
-            const req = store.getAll();
-            req.onsuccess = () => {
-                const all = req.result || [];
-                resolve(all.filter(r => r.storeKey === storeKey));
-            };
-            req.onerror = () => reject(req.error);
-        }
-    });
-}
+async function deleteImageFromDB(sk,id){const db=await openDB();return new Promise((res,rej)=>{
+    const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).delete([sk,id]);
+    tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
+});}
 
-async function deleteImageFromDB(storeKey, imageId) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction([STORE_NAME], 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.delete([storeKey, imageId]);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
-}
+async function clearAllImagesFromDB(){const db=await openDB();return new Promise((res,rej)=>{
+    const tx=db.transaction([STORE_NAME],'readwrite');tx.objectStore(STORE_NAME).clear();
+    tx.oncomplete=()=>res();tx.onerror=()=>reject(tx.error);
+});}
 
-async function clearAllImagesFromDB() {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction([STORE_NAME], 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.clear();
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
-}
-
+// ============================================================
 // ===== LocalStorage =====
-function loadAllData() {
-    try {
-        const s = localStorage.getItem('sfsV11_stores');
-        completedStores = s ? JSON.parse(s) : {};
-        const img = localStorage.getItem('sfsV11_imgKeys');
-        const savedKeys = img ? JSON.parse(img) : {};
+// ============================================================
+function loadAllData(){
+    try{
+        const s=localStorage.getItem('sfsV12_stores');
+        completedStores=s?JSON.parse(s):{};
+        console.log('[Load] Stores:',Object.keys(completedStores).length);
+    }catch(e){completedStores={};imageCache={};}
+}
+function saveStoresData(){localStorage.setItem('sfsV12_stores',JSON.stringify(completedStores));}
+function saveImageKey(key){
+    const d=JSON.parse(localStorage.getItem('sfsV12_imgKeys')||'{}');d[key]=true;
+    localStorage.setItem('sfsV12_imgKeys',JSON.stringify(d));
+}
+
+// ============================================================
+// ===== EXIF 時間讀取 =====
+// ============================================================
+function getExifTime(file){
+    return new Promise(resolve=>{
+        // 先嘗試 EXIF
+        try{
+            EXIF.getData(file, function(){
+                const dt = EXIF.getTag(this, 'DateTimeOriginal');
+                if(dt){
+                    // 格式 "2024:04:13 09:30:00" -> Date
+                    const parts = dt.replace(/\:/g,'-').replace(/ /,'T');
+                    const exifTime = new Date(parts.replace(/^(\d+)-(\d+)-/,'$1/$2/'));
+                    if(!isNaN(exifTime.getTime())){
+                        resolve(exifTime.getTime());
+                        return;
+                    }
+                }
+                resolve(null);
+            });
+        } catch(e){resolve(null);}
         
-        console.log('[Load] Stores:', Object.keys(completedStores).length, ', ImgKeys:', Object.keys(savedKeys).length);
-    } catch(e) { completedStores = {}; imageCache = {}; }
-}
-
-function saveStoresData() {
-    localStorage.setItem('sfsV11_stores', JSON.stringify(completedStores));
-}
-
-function saveImageKey(key) {
-    // 記錄哪些 key 有圖片（用於統計）
-    const data = JSON.parse(localStorage.getItem('sfsV11_imgKeys') || '{}');
-    data[key] = true;
-    localStorage.setItem('sfsV11_imgKeys', JSON.stringify(data));
-}
-
-// ===== 圖片處理 =====
-function compressImage(file, maxSizeKB = 300) {
-    return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = e => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                let w = img.width, h = img.height;
-                const maxDim = 1200;
-                if (w > maxDim || h > maxDim) {
-                    const ratio = Math.min(maxDim/w, maxDim/h);
-                    w *= ratio; h *= ratio;
-                }
-                canvas.width = w; canvas.height = h;
-                ctx.drawImage(img, 0, 0, w, h);
-                
-                let quality = 0.8;
-                let dataUrl = canvas.toDataURL('image/jpeg', quality);
-                
-                // 壓縮至目標大小
-                while (dataUrl.length / 1024 > maxSizeKB && quality > 0.1) {
-                    quality -= 0.1;
-                    dataUrl = canvas.toDataURL('image/jpeg', quality);
-                }
-                
-                resolve(dataUrl);
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+        // Fallback: File.lastModified after short delay
+        setTimeout(()=>resolve(null),500);
     });
 }
 
-function triggerFileUpload(storeKey) {
-    currentImgKey = storeKey;
-    document.getElementById('fileInput').click();
-}
+// ============================================================
+// ===== 圖片處理 =====
+// ============================================================
+function compressImage(file,maxSizeKB=300){return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=e=>{const i=new Image();i.onload=()=>{
+        const c=document.createElement('canvas'),x=c.getContext('2d');
+        let w=i.width,h=i.height,m=1200;if(w>m||h>m){const s=Math.min(m/w,m/h);w*=s;h*=s;}
+        c.width=w;c.height=h;x.drawImage(i,0,0,w,h);let q=0.8,d=c.toDataURL('image/jpeg',q);
+        while(d.length/1024>maxSizeKB&&q>0.1){q-=0.1;d=c.toDataURL('image/jpeg',q);}
+        res(d);
+    };i.src=e.target.result;};r.readAsDataURL(file);
+});}
 
-document.getElementById('fileInput').addEventListener('change', async e => {
-    const files = e.target.files;
-    if (!files.length || !currentImgKey) return;
+function triggerFileUpload(storeKey){currentImgKey=storeKey;document.getElementById('fileInput').click();}
+
+document.getElementById('fileInput').addEventListener('change',async e=>{
+    const files=e.target.files;if(!files.length||!currentImgKey)return;
+    const key=currentImgKey;
+    const existingImgs=imageCache[key]||[];
+    if(existingImgs.length>=2){showToast('❌ 每間店舖最多2張圖','error');e.target.value='';currentImgKey=null;return;}
     
-    const key = currentImgKey;
-    const existingImgs = imageCache[key] || [];
-    
-    if (existingImgs.length >= 2) {
-        showToast('❌ 每間店舖最多2張圖', 'error');
-        e.target.value = '';
-        currentImgKey = null;
-        return;
-    }
-    
-    for (let i = 0; i < Math.min(files.length, 2 - existingImgs.length); i++) {
-        showToast('📷 處理中...', 'info');
-        const compressed = await compressImage(files[i]);
-        const imgId = Date.now().toString(36) + '_' + i + '_' + Math.random().toString(36).substr(2,4);
+    for(let i=0;i<Math.min(files.length,2-existingImgs.length);i++){
+        showToast('📷 處理中...','info');
+        const compressed=await compressImage(files[i]);
+        const imgId='img_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4);
         
-        // Save to IndexedDB
-        await saveImageToDB(key, imgId, compressed);
+        // Save to DB
+        await saveImageToDB(key,imgId,compressed);
         
         // Update cache
-        if (!imageCache[key]) imageCache[key] = [];
-        imageCache[key].push({ id: imgId, data: compressed });
-        
+        if(!imageCache[key]) imageCache[key]=[];
+        imageCache[key].push({id:imgId,data:compressed,time:Date.now()});
         saveImageKey(key);
-    }
-    
-    e.target.value = '';
-    currentImgKey = null;
-    
-    renderStoreList();
-    updateStats();
-    showToast('✅ 圖片已保存', 'success');
-    console.log('[Image] Saved for:', key, 'Count:', imageCache[key]?.length || 0);
-});
-
-// ===== 渲染 =====
-function renderStoreList() {
-    for (const [dayKey, stores] of Object.entries(originalData)) {
-        const listEl = document.getElementById(`list-${dayKey}`);
-        listEl.innerHTML = stores.map(store => {
-            const key = makeSafeKey(dayKey, store.id);
-            const isCompleted = !!completedStores[key];
-            const imgs = imageCache[key] || [];
-            
-            return `
-                <div class="store-card ${isCompleted?'completed':''}">
-                    <div class="store-top">
-                        <div class="store-info">
-                            <div class="store-id">${store.id}</div>
-                        </div>
-                        <button class="complete-btn ${isCompleted?'completed':''}"
-                                onclick="toggleComplete('${dayKey}','${store.id}')">
-                            ${isCompleted?'✓':''}
-                        </button>
-                    </div>
-                    ${isCompleted ? `
-                        <div class="img-section">
-                            <div class="img-label">📷 拍照記錄 (${imgs.length}/2)</div>
-                            <div class="img-thumbs">
-                                ${imgs.map((img,i) =>
-                                    `<img class="img-thumb" src="${img.data}"
-                                         onclick="openLightbox('${key}',${i})"
-                                         alt="圖片${i+1}">`
-                                ).join('')}
-                                ${imgs.length < 2 ?
-                                    `<div class="img-add-btn" onclick="triggerFileUpload('${key}')">+</div>` : ''}
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>`;
-        }).join('');
-    }
-    updateStats();
-}
-
-function renderCompletedList() {
-    const listEl = document.getElementById('completedList');
-    const items = Object.entries(completedStores)
-        .sort((a,b) => b[1].time - a[1].time)
-        .map(([key, data]) => {
-            const time = new Date(data.time).toLocaleString('zh-TW');
-            const lastDash = key.lastIndexOf('-');
-            const storeId = key.substring(lastDash+1);
-            const imgCount = (imageCache[key]||[]).length;
-            return `
-                <div class="store-card">
-                    <div class="store-top">
-                        <div class="store-info">
-                            <div class="store-id">${storeId}
-                                ${imgCount > 0 ? `<span class="completed-img-count">📷${imgCount}</span>` : ''}
-                            </div>
-                            <div class="completed-time">${time}</div>
-                        </div>
-                    </div>
-                </div>`;
-        }).join('');
-    listEl.innerHTML = items || '<p style="text-align:center;padding:40px;color:#999;">尚無已完成項目</p>';
-}
-
-function renderGallery() {
-    const gridEl = document.getElementById('galleryGrid');
-    let items = [];
-    for (const [key, imgs] of Object.entries(imageCache)) {
-        imgs.forEach((img, idx) => {
-            items.push({ key, idx, data: img.data, time: img.time || 0 });
-        });
-    }
-    items.sort((a,b) => b.time - a.time);
-    
-    gridEl.innerHTML = items.length ? items.map(item =>
-        `<div class="gallery-item" onclick="openLightbox('${item.key}',${item.idx})">
-             <img src="${item.data}" alt="照片">
-         </div>`
-    ).join('') : '<p style="grid-column:1/-1;text-align:center;padding:40px;color:#999;">尚無圖片</p>';
-}
-
-function updateStats() {
-    let completed=0, pending=0, photos=0;
-    for (const [dayKey, stores] of Object.entries(originalData)) {
-        for (const s of stores) {
-            const key = makeSafeKey(dayKey, s.id);
-            if (completedStores[key]) completed++;
-            else pending++;
+        
+        // A3: 讀取EXIF時間更新完成時間
+        const storeEntry=completedStores[key];
+        if(storeEntry){
+            try{
+                const exifTs = await getExifTime(files[i]);
+                if(exifTs){
+                    storeEntry.time=exifTs;
+                    saveStoresData();
+                    showToast(`⏰ 已自動設定為拍照時間`,'info');
+                }
+            }catch(ex){console.warn('EXIF err:',ex);}
         }
     }
-    for (const imgs of Object.values(imageCache)) { photos += imgs.length; }
     
-    document.getElementById('completedCount').textContent = completed;
-    document.getElementById('pendingCount').textContent = pending;
-    document.getElementById('photoCount').textContent = photos;
+    e.target.value='';currentImgKey=null;
+    renderStoreList();renderCompletedList();updateStats();
+    showToast('✅ 圖片已保存','success');
+});
+
+// ============================================================
+// ===== 渲染 =====
+// ============================================================
+function formatTime(ts){
+    return new Date(ts).toLocaleString('zh-TW',{
+        year:'numeric',month:'2-digit',day:'2-digit',
+        hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+    }).replace(/\//g,'/');
 }
 
+function renderStoreList(){
+    for(const[dk,stores]of Object.entries(originalData)){
+        const el=document.getElementById(`list-${dk}`);
+        el.innerHTML=stores.map(s=>{
+            const key=makeSafeKey(dk,s.id),isC=!!completedStores[key],imgs=imageCache[key]||[];
+            const timeStr=isC?formatTime(completedStores[key].time):'';
+            return `
+            <div class="store-card ${isC?'completed':''}">
+                <div class="store-top">
+                    <div class="store-info"><div class="store-id">${s.id}</div></div>
+                    <button class="complete-btn ${isC?'completed':''}" onclick="toggleComplete('${dk}','${s.id}')">${isC?'✓':''}</button>
+                </div>
+                ${isC?`
+                <div class="time-row">
+                    <span class="time-label">完成時間</span>
+                    <span class="time-value" onclick="openTimeModal('${key}')" title="點擊修改">${timeStr}<span class="edit-icon">✏️</span></span>
+                </div>
+                `:''}
+                ${isC?`
+                <div class="img-section">
+                    <div class="img-label"><span>📷 拍照記錄 (${imgs.length}/2)</span></div>
+                    <div class="img-thumbs">
+                        ${imgs.map((im,idx)=>`
+                        <div class="img-thumb-wrap">
+                            <img class="img-thumb" src="${im.data}" onclick="openLightbox('${key}',${idx})" alt="圖${idx+1}">
+                            <button class="img-del-btn" onclick="event.stopPropagation();requestDeleteImage('${key}','${im.id}')" title="刪除">✕</button>
+                        </div>`).join('')}
+                        ${imgs.length<2?`<div class="img-add-btn" onclick="triggerFileUpload('${key}')">+</div>`:''}
+                    </div>
+                </div>`:''}
+            </div>`;
+        }).join('');
+    }
+    updateStats();
+}
+
+function renderCompletedList(){
+    const el=document.getElementById('completedList');
+    const items=Object.entries(completedStores).sort((a,b)=>b[1].time-a[1].time).map(([k,d])=>{
+        const ld=k.lastIndexOf('-'),sid=k.substring(ld+1),ic=(imageCache[k]||[]).length;
+        return `<div class="store-card">
+            <div class="store-top">
+                <div class="store-info">
+                    <div class="store-id">${sid}${ic>0?`<span class="completed-img-count">📷${ic}</span>`:''}</div>
+                    <span class="completed-time" onclick="openTimeModal('${k}')" title="點擊修改">${formatTime(d.time)} ✏️</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    el.innerHTML=items||'<p style="text-align:center;padding:40px;color:#999;">尚無已完成項目</p>';
+}
+
+function renderGallery(){
+    const g=document.getElementById('galleryGrid');
+    let items=[];
+    for(const[k,imgs]of Object.entries(imageCache))
+        imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:im.time||0}));
+    items.sort((a,b)=>b.time-a.time);
+    
+    g.innerHTML=items.length?items.map(it=>`
+        <div class="gallery-item" onclick="openLightbox('${it.k}',${it.idx})">
+            <img src="${it.data}" alt="">
+            <div class="gallery-del-overlay" onclick="event.stopPropagation();requestDeleteImage('${it.k}','${imageCache[it.k][it.idx].id}');">🗑️</div>
+        </div>`).join('')
+        :'<p style="grid-column:1/-1;text-align:center;padding:40px;color:#999;">尚無圖片</p>';
+}
+
+function updateStats(){
+    let c=0,p=0,ph=0;
+    for(const[dk,stores]of Object.entries(originalData))
+        for(const s of stores){const k=makeSafeKey(dk,s.id);completedStores[k]?c++:p++;}
+    for(const imgs of Object.values(imageCache))ph+=imgs.length;
+    document.getElementById('completedCount').textContent=c;
+    document.getElementById('pendingCount').textContent=p;
+    document.getElementById('photoCount').textContent=ph;
+}
+
+// ============================================================
 // ===== 操作 =====
-function toggleComplete(dayKey, storeId) {
-    const key = makeSafeKey(dayKey, storeId);
-    if (completedStores[key]) delete completedStores[key];
-    else completedStores[key] = { time: Date.now() };
-    saveStoresData();
-    renderStoreList();
-    renderCompletedList();
+// ============================================================
+function toggleComplete(dk,sid){
+    const k=makeSafeKey(dk,sid);
+    if(completedStores[k])delete completedStores[k];
+    else completedStores[k]={time:Date.now()};
+    saveStoresData();renderStoreList();renderCompletedList();updateStats();
 }
 
-function switchPage(pageId, btn) {
+function switchPage(pid,btn){
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
-    document.getElementById(pageId).classList.add('active');
-    if(btn) btn.classList.add('active');
-    
-    if(pageId==='pageCompleted') renderCompletedList();
-    if(pageId==='pageGallery') renderGallery();
+    document.getElementById(pid).classList.add('active');
+    if(btn)btn.classList.add('active');
+    if(pid==='pageCompleted')renderCompletedList();
+    if(pid==='pageGallery')renderGallery();
 }
 
-document.querySelectorAll('.day-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-        document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
-        document.querySelectorAll('.day-section').forEach(s=>s.classList.remove('active'));
-        document.getElementById('list-'+btn.dataset.day).classList.add('active');
+document.querySelectorAll('.day-btn').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.day-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelectorAll('.day-section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('list-'+b.dataset.day).classList.add('active');
+}));
+
+// ============================================================
+// ===== A1: 刪除圖片 =====
+// ============================================================
+let _pendingDelete=null;
+function requestDeleteImage(key,imgId){
+    _pendingDelete={key,imgId};
+    showConfirm('確定要刪除此照片？\n\n此操作不可復原。',()=>{
+        doDeleteImage(_pendingDelete.key,_pendingDelete.imgId);
     });
-});
-
-// ===== Lightbox =====
-function openLightbox(storeKey, imgIdx) {
-    const imgs = imageCache[storeKey] || [];
-    if(!imgs[imgIdx]) return;
-    
-    document.getElementById('lightboxImg').src = imgs[imgIdx].data;
-    document.getElementById('lightboxNav').textContent = `${imgIdx+1}/${imgs.length}`;
-    document.getElementById('lightbox').classList.add('active');
-    
-    window._lbKey = storeKey;
-    window._lbIdx = imgIdx;
 }
 
-function closeLightbox() {
-    document.getElementById('lightbox').classList.remove('active');
-    window._lbKey = null;
-    window._lbIdx = null;
-}
-
-document.addEventListener('keydown', e => {
-    if(!window._lbKey) return;
-    const imgs = imageCache[window._lbKey]||[];
-    if(e.key==='ArrowRight'&&window._lbIdx<imgs.length-1) openLightbox(window._lbKey,window._lbIdx+1);
-    if(e.key==='ArrowLeft'&&window._lbIdx>0) openLightbox(window._lbKey,window._lbIdx-1);
-    if(e.key==='Escape') closeLightbox();
-});
-
-// ===== 雲端同步 =====
-async function forceUpload() {
-    if(!isFirebaseReady){showToast('❌ Firebase未連接','error');return;}
-    const btn=document.getElementById('uploadBtn');
-    btn.textContent='🔄 上載...';btn.disabled=true;
-    
-    try{
-        // 準備圖片數據（只上載小尺寸base64）
-        const imagesToUpload = {};
-        for(const[key,imgs]of Object.entries(imageCache)){
-            imagesToUpload[key]=imgs.map(img=>img.data);
-        }
-        
-        const payload={
-            stores:completedStores,
-            images:imagesToUpload,
-            timestamp:Date.now()
-        };
-        
-        // 估算大小
-        const sizeKB = JSON.stringify(payload).length/1024;
-        if(sizeKB>800){
-            showToast('⚠️ 數據過大('+Math.round(sizeKB)+'KB)，可能上載失敗','error');
-        }
-        
-        await firebaseDB.ref('deliveryData').set(payload);
-        const storeCnt=Object.keys(completedStores).length;
-        const imgCnt=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
-        showToast(`✅ 上載成功！${storeCnt}店 ${imgCnt}張圖`,'success');
-        document.getElementById('syncStatus').textContent='✅ 上載 '+new Date().toLocaleTimeString();
-    }catch(e){
-        console.error('[Upload]',e);
-        showToast('❌ 失敗:'+e.message,'error');
-    }finally{
-        btn.textContent='⬆️ 上載';btn.disabled=false;
+function doDeleteImage(key,imgId){
+    // Remove from cache
+    if(imageCache[key]){
+        imageCache[key]=imageCache[key].filter(im=>im.id!==imgId);
+        if(imageCache[key].length===0)delete imageCache[key];
     }
+    // Remove from IndexedDB
+    deleteImageFromDB(key,imgId).catch(console.error);
+    // Update localStorage keys
+    const d=JSON.parse(localStorage.getItem('sfsV12_imgKeys')||'{}');
+    if(!(imageCache[key]||[]).length)delete d[key];
+    else d[key]=true;
+    localStorage.setItem('sfsV12_imgKeys',JSON.stringify(d));
+    // Refresh
+    renderStoreList();renderCompletedList();renderGallery();updateStats();
+    showToast('🗑️ 圖片已刪除','success');
+}
+
+// Lightbox delete
+function deleteLightboxImage(){
+    if(!window._lbKey)return;
+    const imgs=imageCache[window._lbKey]||[];
+    const im=imgs[window._lbIdx];
+    if(im){
+        requestDeleteImage(window._lbKey,im.id);
+        closeLightbox();
+    }
+}
+
+// ============================================================
+// ===== A2: 修改完成時間 =====
+// ============================================================
+function openTimeModal(key){
+    _editingKey=key;
+    const ts=completedStores[key]?.time||Date.now();
+    // Format for datetime-local: YYYY-MM-DDTHH:mm
+    const dt=new Date(ts);
+    const pad=n=>String(n).padStart(2,'0');
+    const val=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    document.getElementById('timeModalInput').value=val;
+    document.getElementById('timeModal').classList.add('show');
+}
+function closeTimeModal(){document.getElementById('timeModal').classList.remove('show');_editingKey=null;}
+function saveTimeEdit(){
+    if(!_editingKey)return;
+    const val=document.getElementById('timeModalInput').value;
+    const newTs=new Date(val).getTime();
+    if(isNaN(newTs)){showToast('❌ 無效的時間格式','error');return;}
+    if(completedStores[_editingKey])completedStores[_editingKey].time=newTs;
+    saveStoresData();
+    closeTimeModal();
+    renderStoreList();renderCompletedList();
+    showToast('✅ 時間已更新','success');
+}
+
+document.getElementById('timeModalInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveTimeModal();});
+
+// ============================================================
+// ===== Lightbox =====
+// ============================================================
+function openLightbox(sk,ix){
+    const imgs=imageCache[sk]||[];if(!imgs[ix])return;
+    document.getElementById('lightboxImg').src=imgs[ix].data;
+    document.getElementById('lightboxNav').textContent=`${ix+1}/${imgs.length}`;
+    document.getElementById('lightboxDeleteBtn').style.display='flex';
+    document.getElementById('lightbox').classList.add('active');
+    window._lbKey=sk;window._lbIdx=ix;
+}
+function closeLightbox(){
+    document.getElementById('lightbox').classList.remove('active');
+    window._lbKey=null;window._lbIdx=null;
+}
+document.addEventListener('keydown',e=>{
+    if(!window._lbKey)return;
+    const imgs=imageCache[window._lbKey]||[];
+    if(e.key==='ArrowRight'&&window._lbIdx<imgs.length-1)openLightbox(window._lbKey,window._lbIdx+1);
+    if(e.key==='ArrowLeft'&&window._lbIdx>0)openLightbox(window._lbKey,window._lbIdx-1);
+    if(e.key==='Escape')closeLightbox();
+});
+
+// ============================================================
+// ===== 確認對話框 =====
+// ============================================================
+function showConfirm(msg,yesFn){
+    document.getElementById('confirmMsg').textContent=msg;
+    const yesBtn=document.getElementById('confirmYesBtn');
+    // Clear old listener by cloning
+    const newBtn=yesBtn.cloneNode(true);yesBtn.parentNode.replaceChild(newBtn,yesBtn);
+    newBtn.addEventListener('click',()=>{closeConfirm();yesFn();});
+    document.getElementById('confirmDialog').classList.add('show');
+}
+function closeConfirm(){document.getElementById('confirmDialog').classList.remove('show');}
+
+// ============================================================
+// ===== 雲端同步 =====
+// ============================================================
+async function forceUpload(){
+    if(!isFirebaseReady){showToast('❌ 未連接','error');return;}
+    const b=document.getElementById('uploadBtn');b.textContent='🔄 上載中...';b.disabled=true;
+    try{
+        const imgUp={};
+        for(const[k,imgs]of Object.entries(imageCache))imgUp[k]=imgs.map(im=>im.data);
+        const payload={stores:completedStores,images:imgUp,timestamp:Date.now()};
+        const szKB=JSON.stringify(payload).length/1024;
+        if(szKB>800)showToast(`⚠️ 數據較大(${Math.round(szKB)}KB)`,'info');
+        await firebaseDB.ref('deliveryData').set(payload);
+        showToast(`✅ 上載成功 ${Object.keys(completedStores).length}店 ${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}張圖`,'success');
+        document.getElementById('syncStatus').textContent='✅ 上載 '+new Date().toLocaleTimeString();
+    }catch(e){console.error('[Up]',e);showToast('❌ '+e.message,'error');}
+    finally{b.textContent='⬆️ 上載';b.disabled=false;}
 }
 
 async function forceDownload(){
-    if(!isFirebaseReady){showToast('❌ Firebase未連接','error');return;}
-    const btn=document.getElementById('downloadBtn');
-    btn.textContent='🔄 下載...';btn.disabled=true;
-    
+    if(!isFirebaseReady){showToast('❌ 未連接','error');return;}
+    const b=document.getElementById('downloadBtn');b.textContent='🔄 下載中...';b.disabled=true;
     try{
-        const snapshot=await firebaseDB.ref('deliveryData').once('value');
-        const data=snapshot.val();
-        
+        const snap=await firebaseDB.ref('deliveryData').once('value');
+        const data=snap.val();
         if(data&&data.stores){
-            // ===== 修復：完全覆蓋本地數據 =====
-            console.log('[Download] 開始下載...');
-            console.log('[Download] Cloud stores:', Object.keys(data.stores).length);
-            console.log('[Download] Cloud images:', data.images ? Object.keys(data.images).length : 0);
-            
-            // 1. 完全替換完成記錄
-            completedStores={...data.stores};
-            saveStoresData();
-            console.log('[Download] Stores replaced:', Object.keys(completedStores).length);
-            
-            // 2. 處理圖片：先清除所有本地圖片，再從雲端重建
-            imageCache={};
-            const newImgKeys={};
-            
-            // 先清除 IndexedDB 中所有舊圖片
+            console.log('[DL] Stores:',Object.keys(data.stores).length,', Images:',data.images?Object.keys(data.images).length:0);
+            completedStores={...data.stores};saveStoresData();
+            imageCache={};const nIK={};
             await clearAllImagesFromDB();
-            console.log('[Download] Cleared all local DB images');
-            
-            // 從雲端重建圖片
             if(data.images){
-                let totalImgs=0;
-                for(const[key,imgs]of Object.entries(data.images)){
+                let ti=0;
+                for(const[k,imgs]of Object.entries(data.images)){
                     if(Array.isArray(imgs)&&imgs.length>0){
-                        imageCache[key]=imgs.map((d,i)=>{
-                            totalImgs++;
-                            return{
-                                id:'dl_'+i+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,4),
-                                data:d,
-                                time:data.timestamp||Date.now()
-                            };
+                        imageCache[k]=imgs.map((d,i)=>{
+                            ti++;
+                            return{id:'dl'+i+'_'+Date.now().toString(36),data:d,time:data.timestamp||Date.now()};
                         });
-                        
-                        // 寫入 IndexedDB
-                        for(const img of imageCache[key]){
-                            await saveImageToDB(key,img.id,img.data);
-                        }
-                        newImgKeys[key]=true;
+                        for(const im of imageCache[k])await saveImageToDB(k,im.id,im.data);
+                        nIK[k]=true;
                     }
                 }
-                localStorage.setItem('sfsV11_imgKeys',JSON.stringify(newImgKeys));
-                console.log('[Download] Images restored:', totalImgs);
+                localStorage.setItem('sfsV12_imgKeys',JSON.stringify(nIK));
+                console.log('[DL] Restored',ti,'images');
             }
-            
-            // 3. 強制刷新所有視圖
-            updateStats();
-            renderStoreList();
-            renderCompletedList();
-            renderGallery();
-            
-            const sCnt=Object.keys(completedStores).length;
-            const iCnt=Object.values(imageCache).reduce((a,b)=>a+b.length,0);
-            showToast(`✅ 下載成功！${sCnt}間店 ${iCnt}張圖（已同步雲端）`,'success');
-            document.getElementById('syncStatus').textContent='✅ 已同步 '+new Date().toLocaleTimeString();
-        }else{
-            showToast('ℹ️ 雲端無數據','info');
-        }
-    }catch(e){
-        console.error('[Download]',e);
-        showToast('❌ 失敗:'+e.message,'error');
-    }finally{
-        btn.textContent='⬇️ 下載';btn.disabled=false;
-    }
+            updateStats();renderStoreList();renderCompletedList();renderGallery();
+            showToast(`✅ 下載成功 ${Object.keys(completedStores).length}店 ${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}張圖`,'success');
+            document.getElementById('syncStatus').textContent='✅ 同步 '+new Date().toLocaleTimeString();
+        }else{showToast('ℹ️ 雲端無數據','info');}
+    }catch(e){console.error('[DL]',e);showToast('❌ '+e.message,'error');}
+    finally{b.textContent='⬇️ 下載';b.disabled=false;}
 }
 
+// ============================================================
+// ===== B1: 匯出報告 =====
+// ============================================================
+async function exportReport(){
+    const entries=Object.entries(completedStores).sort((a,b)=>a[1].time-b[1].time);
+    if(!entries.length){showToast('ℹ️ 尚無已完成數據','info');return;}
+    
+    showToast('📄 生成報告中...','info');
+    
+    let html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>送貨報告</title>
+    <style>body{font-family:sans-serif;padding:20px;color:#333;}h1{text-align:center;color:#0071e3;margin-bottom:5px;}
+    .meta{text-align:center;color:#888;font-size:14px;margin-bottom:30px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:30px;}
+    th,td{border:1px solid #ddd;padding:10px;text-align:left;font-size:14px;}
+    th{background:#0071e3;color:white;}.odd{background:#f8f9fa;}
+    .img-cell img{max-width:120px;max-height:120px;border-radius:8px;margin:2px;}
+    .summary{display:flex;gap:15px;justify-content:center;margin:20px 0;}
+    .summary-item{text-align:center;padding:15px;background:#f0f9ff;border-radius:12px;}
+    .summary-num{font-size:28px;font-weight:700;color:#0071e3;}
+    .summary-lbl{font-size:12px;color:#888;}
+    .footer{text-align:center;color:#aaa;font-size:12px;margin-top:40px;}</style></head><body>
+    <h1>📦 SFS 送貨報告</h1>
+    <div class="meta">生成時間：${new Date().toLocaleString('zh-TW')}</div>
+    <div class="summary">
+        <div class="summary-item"><div class="summary-num">${entries.length}</div><div class="summary-lbl">已完成店舖</div></div>
+        <div class="summary-item"><div class="summary-num">${Object.values(imageCache).reduce((a,b)=>a+b.length,0)}</div><div class="summary-lbl">拍攝照片</div></div>
+    </div>
+    <table><tr><th>#</th><th>日期</th><th>店號</th><th>完成時間</th><th>照片</th></tr>`;
+    
+    entries.forEach(([k,d],i)=>{
+        const ld=k.lastIndexOf('-'),sid=k.substring(ld+1);
+        const dayPart=k.substring(0,ld).replace('-','/');
+        const imgs=imageCache[k]||[];
+        html+=`<tr class="${i%2?'odd':''}">
+            <td>${i+1}</td><td>${dayPart}</td><td>${sid}</td><td>${formatTime(d.time)}</td>
+            <td class="img-cell">${imgs.map(im=>`<img src="${im.data}" alt="">`).join('')}</td>
+        </tr>`;
+    });
+    
+    html+=`</table><div class="footer">SFS Delivery System v12</div></body></html>`;
+    
+    // Create blob and download
+    const blob=new Blob([html],{type:'text/html'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`送貨報告_${new Date().toISOString().slice(0,10)}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    
+    showToast('✅ 報告已下載','success');
+}
+
+// ============================================================
 // ===== 重置 =====
+// ============================================================
 async function resetLocalData(){
     const input=prompt('⚠️ 清除所有本地數據\n請輸入密碼：');
     if(input===null)return;
     if(input!==ACCESS_PASSWORD){showToast('❌ 密碼錯誤','error');return;}
-    if(!confirm('確定清除？\n•已完成記錄\n•本地圖片緩存\n雲端不受影響'))return;
+    if(!confirm('確定清除？\n•已完成記錄\n•圖片緩存\n•不影響雲端'))return;
     
-    localStorage.removeItem('sfsV11_stores');
-    localStorage.removeItem('sfsV11_imgKeys');
-    localStorage.removeItem('sfsVerified');
+    localStorage.removeItem('sfsV12_stores');
+    localStorage.removeItem('sfsV12_imgKeys');
+    localStorage.removeItem('sfsV12_verified');
     completedStores={};imageCache={};
     await clearAllImagesFromDB();
     
@@ -862,42 +922,33 @@ async function resetLocalData(){
     showToast('✅ 本地已重置','success');
 }
 
+// ============================================================
 // ===== Toast =====
+// ============================================================
 function showToast(msg,type='info'){
     const c=document.getElementById('toastContainer');
-    const t=document.createElement('div');
-    t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);
-    setTimeout(()=>{
-        t.style.animation='fadeOut 0.3s ease forwards';
-        setTimeout(()=>t.remove(),300);
-    },2500);
+    const t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);
+    setTimeout(()=>{t.style.animation='fadeOut 0.3s ease forwards';setTimeout(()=>t.remove(),300);},2500);
 }
 
+// ============================================================
 // ===== 初始化 =====
+// ============================================================
 async function init(){
-    console.log('[Init] 開始...');
+    console.log('[Init v12] Start...');
     initFirebase();
-    
-    // 打開 IndexedDB
     await openDB();
-    
-    // 加載本地數據
     loadAllData();
-    
-    // 加載圖片到緩存
     imageCache={};
-    const imgKeys=JSON.parse(localStorage.getItem('sfsV11_imgKeys')||'{}');
-    for(const key of Object.keys(imgKeys)){
+    const ik=JSON.parse(localStorage.getItem('sfsV12_imgKeys')||'{}');
+    for(const key of Object.keys(ik)){
         try{
             const imgs=await getImagesFromDB(key);
-            if(imgs&&imgs.length>0){
-                imageCache[key]=imgs.map(r=>({id:r.imageId,data:r.imageData,time:r.time}));
-            }
-        }catch(e){console.warn('[Init] Load img err for',key,e);}
+            if(imgs?.length)imageCache[key]=imgs.map(r=>({id:r.imageId,data:r.imageData,time:r.time}));
+        }catch(e){console.warn('[Init] img err',key,e);}
     }
-    
     renderStoreList();renderCompletedList();renderGallery();updateStats();
-    console.log('[Init] ✅ 完成 - Stores:',Object.keys(completedStores).length,', Images:',Object.keys(imageCache).length);
+    console.log('[Init v12] ✅ Done - Stores:',Object.keys(completedStores).length,', Img keys:',Object.keys(imageCache).length);
 }
 </script>
 </body>
