@@ -961,7 +961,9 @@ async function genRptA(){
         // 每行5個店號，生成多個tr
         for(let i=0;i<sids.length;i+=5){
             const row=sids.slice(i,i+5);
-            let rowHtml='<tr>';
+            // 每個日期的第一行添加分隔線
+            let rowStyle=i===0?' style="border-top:2px solid #e0e0e0;"':'';
+            let rowHtml=`<tr${rowStyle}>`;
             // 第一行才顯示日期和數量（用rowspan）
             if(i===0){
                 rowHtml+=`<td class="ra-d" rowspan="${nRows}">${ds}</td>`;
@@ -990,7 +992,7 @@ async function genRptA(){
         <table style="width:100%;border-collapse:collapse;border:2px solid #e0e0e0;">
         <thead><tr style="background:#f7f7f7;">
             <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:14%;color:#333;">日期</th>
-            <th style="border:1px solid #ddd;padding:14px 8px;font-size:17px;color:#333;">店號</th>
+            <th colspan="5" style="border:1px solid #ddd;padding:14px 8px;font-size:17px;color:#333;">店號</th>
             <th style="border:1px solid #ddd;padding:14px 18px;font-size:17px;width:12%;color:#333;">數量</th>
         </tr></thead>
         <tbody>${tbody}</tbody></table>
