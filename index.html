@@ -48,7 +48,7 @@
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Helvetica Neue,sans-serif;background:#f5f5f7;color:#1d1d1f;min-height:100vh;-webkit-font-smoothing:antialiased;}
-        .container{max-width:768px;margin:0 auto;padding:20px 16px 100px;}
+        .container{max-width:768px;margin:0 auto;padding:8px 16px 100px;}
 
         /* ===== Header（v05風格：居中大標題） ===== */
         .header{text-align:center;padding:40px 0 24px;}
@@ -326,7 +326,6 @@
     <!-- Completed Page -->
     <div class="page" id="pgCompleted">
         <div class="container">
-            <div class="completed-header"><h2>✅ 已完成列表</h2></div>
             <div class="comp-table" id="compTable">
                 <div class="ct-head"><span class="ct-col-time">完成時間</span><span class="ct-col-store">店號</span><span class="ct-col-img">照片</span></div>
                 <div id="compRows"><div class="ct-empty">尚無已完成項目</div></div>
@@ -337,7 +336,6 @@
     <!-- Gallery Page -->
     <div class="page" id="pgGallery">
         <div class="container">
-            <div class="gallery-header"><h2>📷 圖片庫</h2></div>
             <div class="gal-store-tabs" id="galTabs"></div>
             <div class="gal-grid" id="galGrid"></div>
         </div>
@@ -754,8 +752,8 @@ function renderGallery(){
         const imgs=imageCache[k]||[];
         imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:completedStores[k]?.time||im.time||Date.now()}));
     }
-    // 按時間排序（由新到舊）
-    items.sort((a,b)=>b.time-a.time);
+    // 按時間排序（由舊到新）
+    items.sort((a,b)=>a.time-b.time);
     // 按日期分組
     const byDate={};
     items.forEach(it=>{
@@ -763,10 +761,10 @@ function renderGallery(){
         if(!byDate[dateKey])byDate[dateKey]=[];
         byDate[dateKey].push(it);
     });
-    // 日期排序（由新到舊）
+    // 日期排序（由舊到新）
     let sortedDates=Object.keys(byDate).sort((a,b)=>{
         const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number);
-        return am!==bm?bm-am:bd-ad;
+        return am!==bm?am-bm:ad-bd;
     });
     // 如果有日期過濾，只顯示該日期
     if(galFilterDate){
