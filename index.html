@@ -163,6 +163,7 @@
         .gst-btn.active{background:#007aff;color:#fff;}
         .gst-btn.has-img::after{content:'';position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:#34c759;border-radius:50%;border:2px solid #fff;}
         .gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:3px;}
+        .gal-all-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:6px;}
         .gal-date-group{margin-bottom:16px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);}
         .gal-date-header{padding:12px 16px;background:#f7f7f7;font-size:15px;font-weight:600;color:#333;border-bottom:1px solid #e0e0e0;}
         .gal-date-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:3px;}
@@ -767,10 +768,10 @@ function renderGallery(){
     }
     // 生成HTML
     let html='';
-    sortedDates.forEach(ds=>{
-        const dayItems=byDate[ds];
-        html+=`<div class="gal-date-group"><div class="gal-date-header">📅 ${ds} (${dayItems.length}張)</div><div class="gal-date-grid">`;
-        html+=dayItems.map(it=>{
+    // "全部"時不分組，直接平鋪所有圖片大縮圖
+    if(!galFilterDate){
+        html+=`<div class="gal-all-grid">`;
+        html+=items.map(it=>{
             const iid=imageCache[it.k][it.idx].id;
             return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
                 onclick="openLb('${it.k}',${it.idx})"
@@ -779,8 +780,24 @@ function renderGallery(){
                 <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}" onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').remove();">🗑️</div>
                 <div class="gal-hint">長按刪除</div></div>`;
         }).join('');
-        html+='</div></div>';
-    });
+        html+='</div>';
+    }else{
+        // 選中日期時，按日期分組顯示
+        sortedDates.forEach(ds=>{
+            const dayItems=byDate[ds];
+            html+=`<div class="gal-date-group"><div class="gal-date-header">📅 ${ds} (${dayItems.length}張)</div><div class="gal-date-grid">`;
+            html+=dayItems.map(it=>{
+                const iid=imageCache[it.k][it.idx].id;
+                return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
+                    onclick="openLb('${it.k}',${it.idx})"
+                    ontouchstart="galTS(event)" ontouchend="galTE(event)" ontouchmove="galTM(event)">
+                    <img src="${it.data}" alt="">
+                    <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}" onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').remove();">🗑️</div>
+                    <div class="gal-hint">長按刪除</div></div>`;
+            }).join('');
+            html+='</div></div>';
+        });
+    }
     g.innerHTML=items.length?html:'<div style="grid-column:1/-1;text-align:center;padding:35px;color:#aaa;">尚無圖片</div>';
 }
 let _gtTimer=null,_gtEl=null,_gtMoved=false,_gtLP=false;
@@ -958,9 +975,15 @@ async function genRptA(){
     sortedDates.forEach(ds=>{
         const sids=groups[ds];total+=sids.length;
         const nRows=Math.ceil(sids.length/5);
+        // 店號用逗號分隔，每5個一行
+        let storeLines=[];
+        for(let i=0;i<sids.length;i+=5){
+            storeLines.push(sids.slice(i,i+5).join(', '));
+        }
         // 每行5個店號，生成多個tr
         for(let i=0;i<sids.length;i+=5){
             const row=sids.slice(i,i+5);
+            const lineText=row.join(', ');
             // 每個日期的第一行添加分隔線
             let rowStyle=i===0?' style="border-top:2px solid #e0e0e0;"':'';
             let rowHtml=`<tr${rowStyle}>`;
@@ -968,9 +991,8 @@ async function genRptA(){
             if(i===0){
                 rowHtml+=`<td class="ra-d" rowspan="${nRows}">${ds}</td>`;
             }
-            // 店號格子（固定5格，不足補空）
-            rowHtml+=row.map(s=>`<td class="ra-cell">${s}</td>`).join('');
-            for(let j=row.length;j<5;j++)rowHtml+='<td class="ra-cell ra-empty"></td>';
+            // 店號文字（逗號分隔）
+            rowHtml+=`<td class="ra-s">${lineText}</td>`;
             // 第一行才顯示數量（用rowspan）
             if(i===0){
                 rowHtml+=`<td class="ra-c" rowspan="${nRows}">${sids.length}</td>`;
