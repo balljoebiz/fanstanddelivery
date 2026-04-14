@@ -163,6 +163,9 @@
         .gst-btn.active{background:#007aff;color:#fff;}
         .gst-btn.has-img::after{content:'';position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:#34c759;border-radius:50%;border:2px solid #fff;}
         .gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:3px;}
+        .gal-date-group{margin-bottom:16px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+        .gal-date-header{padding:12px 16px;background:#f7f7f7;font-size:15px;font-weight:600;color:#333;border-bottom:1px solid #e0e0e0;}
+        .gal-date-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:3px;}
         .gal-item{aspect-ratio:1;cursor:pointer;overflow:hidden;position:relative;}
         .gal-item img{width:100%;height:100%;object-fit:cover;transition:transform 0.25s;}
         .gal-item:hover img{transform:scale(1.04);}
@@ -736,16 +739,35 @@ function renderGallery(){
         const imgs=imageCache[k]||[];
         imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:im.time||0}));
     }
-    items.sort((a,b)=>(b.time||0)-(a.time||0));
-    g.innerHTML=items.length?items.map(it=>{
-        const iid=imageCache[it.k][it.idx].id;
-        return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
-            onclick="openLb('${it.k}',${it.idx})"
-            ontouchstart="galTS(event)" ontouchend="galTE(event)" ontouchmove="galTM(event)">
-            <img src="${it.data}" alt="">
-            <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}" onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').remove();">🗑️</div>
-            <div class="gal-hint">長按刪除</div></div>`;
-    }).join(''):'<div style="grid-column:1/-1;text-align:center;padding:35px;color:#aaa;">尚無圖片</div>';
+    // 按日期分組
+    const byDate={};
+    items.forEach(it=>{
+        const dt=new Date(it.time),dateKey=`${dt.getMonth()+1}/${dt.getDate()}`;
+        if(!byDate[dateKey])byDate[dateKey]=[];
+        byDate[dateKey].push(it);
+    });
+    // 日期排序（由新到舊）
+    const sortedDates=Object.keys(byDate).sort((a,b)=>{
+        const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number);
+        return am!==bm?bm-am:bd-ad;
+    });
+    // 生成HTML
+    let html='';
+    sortedDates.forEach(ds=>{
+        const dayItems=byDate[ds];
+        html+=`<div class="gal-date-group"><div class="gal-date-header">📅 ${ds} (${dayItems.length}張)</div><div class="gal-date-grid">`;
+        html+=dayItems.map(it=>{
+            const iid=imageCache[it.k][it.idx].id;
+            return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
+                onclick="openLb('${it.k}',${it.idx})"
+                ontouchstart="galTS(event)" ontouchend="galTE(event)" ontouchmove="galTM(event)">
+                <img src="${it.data}" alt="">
+                <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}" onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').remove();">🗑️</div>
+                <div class="gal-hint">長按刪除</div></div>`;
+        }).join('');
+        html+='</div></div>';
+    });
+    g.innerHTML=items.length?html:'<div style="grid-column:1/-1;text-align:center;padding:35px;color:#aaa;">尚無圖片</div>';
 }
 let _gtTimer=null,_gtEl=null,_gtMoved=false,_gtLP=false;
 function galTS(e){
@@ -921,19 +943,27 @@ async function genRptA(){
     let total=0,tbody='';
     sortedDates.forEach(ds=>{
         const sids=groups[ds];total+=sids.length;
-        // 純文字：逗號分隔，每5個換行（復刻範例）
-        let txt=sids.join(', ');
-        const parts=[];
-        for(let i=0;i<sids.length;i+=5)parts.push(sids.slice(i,i+5).join(', '));
-        tbody+=`<tr><td class="ra-d">${ds}</td><td class="ra-s">${parts.join('<br>')}</td><td class="ra-c">${sids.length}</td></tr>`;
+        // 格子表格：每行5個，等寬，不足5個靠左對齊
+        let rows='';
+        for(let i=0;i<sids.length;i+=5){
+            const row=sids.slice(i,i+5);
+            rows+='<tr>'+row.map(s=>`<td class="ra-cell">${s}</td>`).join('');
+            // 不足5個時，補充空格格子以保持寬度一致
+            for(let j=row.length;j<5;j++)rows+='<td class="ra-cell ra-empty"></td>';
+            rows+='</tr>';
+        }
+        const nRows=Math.ceil(sids.length/5);
+        tbody+=`<tr><td class="ra-d" rowspan="${nRows}">${ds}</td><td rowspan="${nRows}"><table class="ra-grid">${rows}</table></td><td class="ra-c" rowspan="${nRows}">${sids.length}</td></tr>`;
     });
         
     const html=`<div id="rptAContent" style="width:794px;background:#fff;padding:48px;box-sizing:border-box;font-family:-apple-system,'PingFang SC','Microsoft JhengHei',sans-serif;">
         <h1 style="text-align:center;font-size:28px;font-weight:700;color:#222;margin-bottom:32px;letter-spacing:1px;">Small Fan Stand 送貨完成列表</h1>
         <style>
         .ra-d{font-weight:700;color:#34c759!important;font-size:20px!important;vertical-align:middle!important;border:1px solid #e0e0e0!important;padding:0 8px!important;text-align:center!important;}
-        .ra-s{font-size:18px!important;line-height:2!important;padding:14px 12px!important;border:1px solid #e0e0e0!important;text-align:center!important;word-break:break-all!important;letter-spacing:.5px!important;vertical-align:middle!important;}
         .ra-c{font-weight:700;color:#007aff!important;font-size:18px!important;text-align:center!important;vertical-align:middle!important;border:1px solid #e0e0e0!important;padding:0 8px!important;}
+        .ra-grid{width:100%;border-collapse:collapse;}
+        .ra-cell{text-align:center!important;font-size:18px!important;font-weight:500!important;padding:10px 4px!important;min-width:80px!important;}
+        .ra-empty{opacity:0;}
         </style>
         <table style="width:100%;border-collapse:collapse;border:2px solid #e0e0e0;">
         <thead><tr style="background:#f7f7f7;">
