@@ -163,7 +163,11 @@
         .gst-btn.active{background:#007aff;color:#fff;}
         .gst-btn.has-img::after{content:'';position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:#34c759;border-radius:50%;border:2px solid #fff;}
         .gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:3px;}
-        .gal-all-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:6px;}
+        .gal-all-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:8px;}
+        /* 響幕自適應：大手機/平板一行4圖，小手機一行3圖，超小手機一行2圖 */
+        @media (min-width:420px){.gal-all-grid{grid-template-columns:repeat(4,1fr);}}
+        @media (min-width:640px){.gal-all-grid{grid-template-columns:repeat(5,1fr);}}
+        @media (max-width:360px){.gal-all-grid{grid-template-columns:repeat(2,1fr);}}
         .gal-date-group{margin-bottom:16px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);}
         .gal-date-header{padding:12px 16px;background:#f7f7f7;font-size:15px;font-weight:600;color:#333;border-bottom:1px solid #e0e0e0;}
         .gal-date-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:3px;}
@@ -975,15 +979,9 @@ async function genRptA(){
     sortedDates.forEach(ds=>{
         const sids=groups[ds];total+=sids.length;
         const nRows=Math.ceil(sids.length/5);
-        // 店號用逗號分隔，每5個一行
-        let storeLines=[];
-        for(let i=0;i<sids.length;i+=5){
-            storeLines.push(sids.slice(i,i+5).join(', '));
-        }
         // 每行5個店號，生成多個tr
         for(let i=0;i<sids.length;i+=5){
             const row=sids.slice(i,i+5);
-            const lineText=row.join(', ');
             // 每個日期的第一行添加分隔線
             let rowStyle=i===0?' style="border-top:2px solid #e0e0e0;"':'';
             let rowHtml=`<tr${rowStyle}>`;
@@ -991,8 +989,9 @@ async function genRptA(){
             if(i===0){
                 rowHtml+=`<td class="ra-d" rowspan="${nRows}">${ds}</td>`;
             }
-            // 店號文字（逗號分隔）
-            rowHtml+=`<td class="ra-s">${lineText}</td>`;
+            // 店號格子（固定5格，不足5個靠左對齊）
+            rowHtml+=row.map(s=>`<td class="ra-cell">${s}</td>`).join('');
+            for(let j=row.length;j<5;j++)rowHtml+='<td class="ra-cell ra-empty"></td>';
             // 第一行才顯示數量（用rowspan）
             if(i===0){
                 rowHtml+=`<td class="ra-c" rowspan="${nRows}">${sids.length}</td>`;
