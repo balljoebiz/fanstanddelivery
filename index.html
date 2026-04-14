@@ -87,7 +87,7 @@
         .day-stat.ds-done .ds-value{color:#34c759;} .day-stat.ds-todo .ds-value{color:#ff9500;}
 
         /* ===== Sync Bar ===== */
-        .sync-bar{display:flex;gap:8px;padding:0 4px;margin-bottom:6px;flex-wrap:wrap;}
+        .sync-bar{display:flex;gap:8px;padding:0 4px;margin-bottom:2px;flex-wrap:wrap;}
         .sync-btn{flex:1;min-width:72px;padding:12px 8px;border:none;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.25s;}
         .sb-up{background:linear-gradient(135deg,#007aff,#5856d6);color:white;}
         .sb-down{background:#5856d6;color:white;}
@@ -158,7 +158,7 @@
         .gallery-header{display:flex;align-items:center;justify-content:space-between;padding:16px 0 10px;}
         .gallery-header h2{font-size:22px;font-weight:600;}
         /* Store filter tabs */
-        .gal-store-tabs{display:flex;gap:6px;padding:0 4px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+        .gal-store-tabs{display:flex;gap:6px;padding:0 4px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
         .gst-btn{flex:0 0 auto;padding:7px 14px;border:none;border-radius:18px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.07);white-space:nowrap;}
         .gst-btn.active{background:#007aff;color:#fff;}
         .gst-btn.has-img::after{content:'';position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:#34c759;border-radius:50%;border:2px solid #fff;}
@@ -730,10 +730,10 @@ function renderGalTabs(){
         const dt=new Date(storeTime),dateKey=`${dt.getMonth()+1}/${dt.getDate()}`;
         dateSet.add(dateKey);
     }
-    // 日期排序（由新到舊）
+    // 日期排序（由舊到新）
     const dates=Array.from(dateSet).sort((a,b)=>{
         const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number);
-        return am!==bm?bm-am:bd-ad;
+        return am!==bm?am-bm:ad-bd;
     });
     // 生成按鈕：全部 + 各日期（只保留一個全部）
     el.innerHTML=`<button class="gst-btn ${galFilterDate===null?'active':''}" onclick="filterGalDate(null,this)">全部</button>`
