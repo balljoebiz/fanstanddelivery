@@ -429,7 +429,7 @@ const TOTAL=Object.values(originalData).reduce((a,d)=>a+d.length,0);
 let completedStores={},imageCache={},isFBReady=false,fDB,currentImgKey=null,currentDay='wed',_editKey=null;
 let lbImages=[],lbIdx=0,lbSk=null,zL=1,tX=0,tY=0;
 let dbInst=null,DB_NAME='SFS_Delivery_v15',ST_NAME='images';
-let galFilterSk=null;
+let galFilterSk=null,galFilterDate=null;
 
 // ============================================================
 // PASSWORD
@@ -719,23 +719,33 @@ function renderCompleted(){
 // ============================================================
 function renderGalTabs(){
     const el=document.getElementById('galTabs');
-    let items=[['全部','__all__']];
-    for(const[k,imgs]of Object.entries(imageCache))
-        items.push([k.split('-')[1],k]);
-    items.sort((a,b)=>a[0].localeCompare(b[0],'zh-HK'));
-    el.innerHTML=`<button class="gst-btn ${galFilterSk===null||galFilterSk==='__all__'?'active':''}" onclick="filterGal('__all__',this)">全部</button>`
-        +items.slice(1).map(([lbl,sk])=>`<button class="gst-btn ${(galFilterSk===sk?'active':'')} ${imageCache[sk]?.length?'has-img':''}" style="position:relative;" onclick="filterGal('${sk}',this)">${lbl}</button>`).join('');
+    // 提取所有圖片日期
+    const dateSet=new Set();
+    for(const[k,imgs]of Object.entries(imageCache)){
+        imgs.forEach(im=>{
+            const dt=new Date(im.time||0),dateKey=`${dt.getMonth()+1}/${dt.getDate()}`;
+            dateSet.add(dateKey);
+        });
+    }
+    // 日期排序（由新到舊）
+    const dates=Array.from(dateSet).sort((a,b)=>{
+        const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number);
+        return am!==bm?bm-am:bd-ad;
+    });
+    // 生成按鈕：全部 + 各日期（只保留一個全部）
+    el.innerHTML=`<button class="gst-btn ${galFilterDate===null?'active':''}" onclick="filterGalDate(null,this)">全部</button>`
+        +dates.map(ds=>`<button class="gst-btn ${galFilterDate===ds?'active':''}" onclick="filterGalDate('${ds}',this)">${ds}</button>`).join('');
 }
-function filterGal(sk,bt){
-    galFilterSk=(sk==='__all__')?null:sk;
+function filterGalDate(ds,bt){
+    galFilterDate=ds;
     document.querySelectorAll('.gst-btn').forEach(b=>b.classList.remove('active'));if(bt)bt.classList.add('active');
     renderGallery();
 }
 function renderGallery(){
     const g=document.getElementById('galGrid');
     let items=[];
-    const keys=galFilterSk?[galFilterSk]:Object.keys(imageCache);
-    for(const k of keys){
+    // 收集所有圖片
+    for(const k of Object.keys(imageCache)){
         const imgs=imageCache[k]||[];
         imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:im.time||0}));
     }
@@ -747,10 +757,14 @@ function renderGallery(){
         byDate[dateKey].push(it);
     });
     // 日期排序（由新到舊）
-    const sortedDates=Object.keys(byDate).sort((a,b)=>{
+    let sortedDates=Object.keys(byDate).sort((a,b)=>{
         const [am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number);
         return am!==bm?bm-am:bd-ad;
     });
+    // 如果有日期過濾，只顯示該日期
+    if(galFilterDate){
+        sortedDates=sortedDates.filter(d=>d===galFilterDate);
+    }
     // 生成HTML
     let html='';
     sortedDates.forEach(ds=>{
@@ -943,17 +957,25 @@ async function genRptA(){
     let total=0,tbody='';
     sortedDates.forEach(ds=>{
         const sids=groups[ds];total+=sids.length;
-        // 格子表格：每行5個，等寬，不足5個靠左對齊
-        let rows='';
+        const nRows=Math.ceil(sids.length/5);
+        // 每行5個店號，生成多個tr
         for(let i=0;i<sids.length;i+=5){
             const row=sids.slice(i,i+5);
-            rows+='<tr>'+row.map(s=>`<td class="ra-cell">${s}</td>`).join('');
-            // 不足5個時，補充空格格子以保持寬度一致
-            for(let j=row.length;j<5;j++)rows+='<td class="ra-cell ra-empty"></td>';
-            rows+='</tr>';
+            let rowHtml='<tr>';
+            // 第一行才顯示日期和數量（用rowspan）
+            if(i===0){
+                rowHtml+=`<td class="ra-d" rowspan="${nRows}">${ds}</td>`;
+            }
+            // 店號格子（固定5格，不足補空）
+            rowHtml+=row.map(s=>`<td class="ra-cell">${s}</td>`).join('');
+            for(let j=row.length;j<5;j++)rowHtml+='<td class="ra-cell ra-empty"></td>';
+            // 第一行才顯示數量（用rowspan）
+            if(i===0){
+                rowHtml+=`<td class="ra-c" rowspan="${nRows}">${sids.length}</td>`;
+            }
+            rowHtml+='</tr>';
+            tbody+=rowHtml;
         }
-        const nRows=Math.ceil(sids.length/5);
-        tbody+=`<tr><td class="ra-d" rowspan="${nRows}">${ds}</td><td rowspan="${nRows}"><table class="ra-grid">${rows}</table></td><td class="ra-c" rowspan="${nRows}">${sids.length}</td></tr>`;
     });
         
     const html=`<div id="rptAContent" style="width:794px;background:#fff;padding:48px;box-sizing:border-box;font-family:-apple-system,'PingFang SC','Microsoft JhengHei',sans-serif;">
