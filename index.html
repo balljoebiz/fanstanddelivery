@@ -51,9 +51,9 @@
         .container{max-width:768px;margin:0 auto;padding:8px 16px 100px;}
 
         /* ===== Header（v05風格：居中大標題） ===== */
-        .header{text-align:center;padding:40px 0 24px;}
-        .header h1{font-size:26px;font-weight:600;letter-spacing:-0.5px;}
-        .header p{font-size:14px;color:#86868b;margin-top:6px;}
+        .header{text-align:center;padding:20px 0 12px;}
+        .header h1{font-size:28px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px;}
+        .header p{font-size:14px;color:#86868b;margin:0;}
 
         /* ===== Day Tab Cards（v05：卡片式，陰影+圓角） ===== */
         .day-selector{display:flex;gap:8px;padding:0 4px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
@@ -288,8 +288,8 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>📦 Small Fan Stand 送貨路線</h1>
-            <p id="todayDate"></p>
+            <h1>Small Fan Stand</h1>
+            <p>送貨路線規劃</p>
         </div>
 
         <!-- Day Selector -->
@@ -647,9 +647,6 @@ function renderDayTabs(){
         return `<button class="day-btn ${dk===currentDay?'active':''} ${isRay?'raymond':''}" data-d="${dk}" onclick="selDay('${dk}',this)">
             <div class="db-date">${dl}</div><div class="db-day">${dn}</div><div class="db-count">${done}/${st.length}</div></button>`;
     }).join('');
-    // Today date
-    const d=new Date(),m=d.getMonth()+1,dd=d.getDate();
-    document.getElementById('todayDate').textContent=`${new Date().toLocaleDateString('zh-TW',{weekday:'long',month:'long',day:'numeric'})} · ${m}/${dd}`;
 }
 function selDay(dk,bt){currentDay=dk;document.querySelectorAll('.day-btn').forEach(t=>t.classList.remove('active'));if(bt)bt.classList.add('active');
     renderList();updateStats();renderGalTabs();renderGallery();}
