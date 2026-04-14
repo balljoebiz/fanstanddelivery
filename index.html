@@ -166,7 +166,7 @@
         .gal-item{aspect-ratio:1;cursor:pointer;overflow:hidden;position:relative;}
         .gal-item img{width:100%;height:100%;object-fit:cover;transition:transform 0.25s;}
         .gal-item:hover img{transform:scale(1.04);}
-        .gal-del-overlay{position:absolute;inset:0;background:rgba(255,59,48,.7);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;z-index:2;pointer-events:auto;font-size:26px;color:white;}
+        .gal-del-overlay{position:absolute;inset:0;background:rgba(255,59,48,.7);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;z-index:2;pointer-events:none;font-size:26px;color:white;}
         .gal-hint{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:9px;color:rgba(255,255,255,.65);z-index:3;pointer-events:none;}
 
         /* ===== Tab Bar（毛玻璃效果） ===== */
@@ -751,7 +751,7 @@ let _gtTimer=null,_gtEl=null,_gtMoved=false,_gtLP=false;
 function galTS(e){
     if(e.touches.length!==1)return;
     _gtEl=e.currentTarget;_gtMoved=false;_gtLP=false;
-    _gtTimer=setTimeout(()=>{_gtLP=true;if(_gtEl){const o=_gtEl.querySelector('.gal-del-overlay');if(o)o.style.opacity='1';}},500);
+    _gtTimer=setTimeout(()=>{_gtLP=true;if(_gtEl){const o=_gtEl.querySelector('.gal-del-overlay');if(o){o.style.opacity='1';o.style.pointerEvents='auto';}}},500);
 }
 function galTE(e){
     clearTimeout(_gtTimer);_gtTimer=null;
@@ -760,8 +760,10 @@ function galTE(e){
         e.preventDefault();
         if(_gtEl)_gtEl._lpHandled=true;
     }
+    // Reset overlay pointer-events
+    if(_gtEl){const o=_gtEl.querySelector('.gal-del-overlay');if(o){o.style.opacity='0';o.style.pointerEvents='none';}}
 }
-function galTM(e){if(_gtTimer){clearTimeout(_gtTimer);_gtTimer=null;}}
+function galTM(e){if(_gtTimer){clearTimeout(_gtTimer);_gtTimer=null;}if(_gtEl){const o=_gtEl.querySelector('.gal-del-overlay');if(o){o.style.opacity='0';o.style.pointerEvents='none';}}}
 
 // ============================================================
 // ACTIONS
@@ -930,7 +932,7 @@ async function genRptA(){
         <h1 style="text-align:center;font-size:28px;font-weight:700;color:#222;margin-bottom:32px;letter-spacing:1px;">Small Fan Stand 送貨完成列表</h1>
         <style>
         .ra-d{font-weight:700;color:#34c759!important;font-size:20px!important;vertical-align:middle!important;border:1px solid #e0e0e0!important;padding:0 8px!important;text-align:center!important;}
-        .ra-s{font-size:16px!important;line-height:2!important;padding:14px 12px!important;border:1px solid #e0e0e0!important;text-align:left!important;word-break:break-all!important;letter-spacing:.5px!important;vertical-align:top!important;}
+        .ra-s{font-size:18px!important;line-height:2!important;padding:14px 12px!important;border:1px solid #e0e0e0!important;text-align:center!important;word-break:break-all!important;letter-spacing:.5px!important;vertical-align:middle!important;}
         .ra-c{font-weight:700;color:#007aff!important;font-size:18px!important;text-align:center!important;vertical-align:middle!important;border:1px solid #e0e0e0!important;padding:0 8px!important;}
         </style>
         <table style="width:100%;border-collapse:collapse;border:2px solid #e0e0e0;">
