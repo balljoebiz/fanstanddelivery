@@ -724,13 +724,13 @@ function renderCompleted(){
 // ============================================================
 function renderGalTabs(){
     const el=document.getElementById('galTabs');
-    // 提取所有圖片日期
+    // 提取所有圖片日期（使用店舖完成時間）
     const dateSet=new Set();
     for(const[k,imgs]of Object.entries(imageCache)){
-        imgs.forEach(im=>{
-            const dt=new Date(im.time||0),dateKey=`${dt.getMonth()+1}/${dt.getDate()}`;
-            dateSet.add(dateKey);
-        });
+        if(!imgs.length)continue;
+        const storeTime=completedStores[k]?.time||imgs[0]?.time||Date.now();
+        const dt=new Date(storeTime),dateKey=`${dt.getMonth()+1}/${dt.getDate()}`;
+        dateSet.add(dateKey);
     }
     // 日期排序（由新到舊）
     const dates=Array.from(dateSet).sort((a,b)=>{
@@ -754,6 +754,8 @@ function renderGallery(){
         const imgs=imageCache[k]||[];
         imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:completedStores[k]?.time||im.time||Date.now()}));
     }
+    // 按時間排序（由新到舊）
+    items.sort((a,b)=>b.time-a.time);
     // 按日期分組
     const byDate={};
     items.forEach(it=>{
@@ -776,13 +778,9 @@ function renderGallery(){
     if(!galFilterDate){
         html+=`<div class="gal-all-grid">`;
         html+=items.map(it=>{
-            const iid=imageCache[it.k][it.idx].id;
             return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
-                onclick="openLb('${it.k}',${it.idx})"
-                ontouchstart="galTS(event)" ontouchend="galTE(event)" ontouchmove="galTM(event)">
-                <img src="${it.data}" alt="">
-                <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}" onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').remove();">🗑️</div>
-                <div class="gal-hint">長按刪除</div></div>`;
+                onclick="openLb('${it.k}',${it.idx})">
+                <img src="${it.data}" alt=""></div>`;
         }).join('');
         html+='</div>';
     }else{
@@ -791,13 +789,9 @@ function renderGallery(){
             const dayItems=byDate[ds];
             html+=`<div class="gal-date-group"><div class="gal-date-header">📅 ${ds} (${dayItems.length}張)</div><div class="gal-date-grid">`;
             html+=dayItems.map(it=>{
-                const iid=imageCache[it.k][it.idx].id;
                 return `<div class="gal-item" data-k="${it.k}" data-idx="${it.idx}"
-                    onclick="openLb('${it.k}',${it.idx})"
-                    ontouchstart="galTS(event)" ontouchend="galTE(event)" ontouchmove="galTM(event)">
-                    <img src="${it.data}" alt="">
-                    <div class="gal-del-overlay" id="gdo-${it.k}-${it.idx}" onclick="event.stopPropagation();reqDel('${it.k}','${iid}');closeLb();this.closest('.gal-item').remove();">🗑️</div>
-                    <div class="gal-hint">長按刪除</div></div>`;
+                    onclick="openLb('${it.k}',${it.idx})">
+                    <img src="${it.data}" alt=""></div>`;
             }).join('');
             html+='</div></div>';
         });
@@ -856,7 +850,11 @@ function closeTm(){document.getElementById('tmOverlay').classList.remove('show')
 function saveTmEdit(){if(!_editKey)return;
     const val=document.getElementById('tmInput').value,ts=new Date(val).getTime();
     if(isNaN(ts)){showToast('❌ 無效時間','error');return;}
-    if(completedStores[_editKey])completedStores[_editKey].time=ts;saveData();closeTm();renderList();renderCompleted();showToast('✅ 時間已更新','success');}
+    if(completedStores[_editKey])completedStores[_editKey].time=ts;saveData();closeTm();renderList();renderCompleted();
+    // 自動選中新日期（而非重置為全部）
+    const newDate=`${new Date(ts).getMonth()+1}/${new Date(ts).getDate()}`;
+    galFilterDate=newDate;
+    renderGalTabs();renderGallery();showToast('✅ 時間已更新','success');}
 document.getElementById('tmInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveTmEdit();});
 
 // Lightbox
