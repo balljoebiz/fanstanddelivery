@@ -752,7 +752,7 @@ function renderGallery(){
     // 收集所有圖片
     for(const k of Object.keys(imageCache)){
         const imgs=imageCache[k]||[];
-        imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:im.time||0}));
+        imgs.forEach((im,idx)=>items.push({k,idx,data:im.data,time:completedStores[k]?.time||im.time||Date.now()}));
     }
     // 按日期分組
     const byDate={};
